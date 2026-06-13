@@ -19,7 +19,6 @@
     --color-warn: #dc2626;
     --color-success-text: #059669;
     --radius-md: 8px;
-    --radius-lg: 12px;
     --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   }
   @media (prefers-color-scheme: dark) {
@@ -95,7 +94,7 @@
   .erow{display:grid;grid-template-columns:1fr 56px 34px;gap:6px;align-items:center;padding:7px 10px;background:var(--bg-primary);border:0.5px solid var(--border-light);border-radius:var(--radius-md);}
   .erow-lbl{display:grid;grid-template-columns:1fr 56px 34px;gap:6px;padding:0 10px 4px;font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.04em;}
   .ename-inp{font-size:13px;padding:5px 7px;border:0.5px solid var(--border-mid);border-radius:4px;background:var(--bg-secondary);color:var(--text-primary);width:100%;min-width:0;font-family:var(--font);}
-  .ename-inp:focus{outline:none;border-color:var(--border-mid);}
+  .ename-inp:focus{outline:none;}
   .edur-inp{font-size:13px;padding:5px 6px;border:0.5px solid var(--border-mid);border-radius:4px;background:var(--bg-secondary);color:var(--text-primary);width:100%;text-align:center;font-family:var(--font);}
   .edur-inp::-webkit-inner-spin-button{-webkit-appearance:none;}
   .edur-inp:focus{outline:none;}
@@ -108,11 +107,26 @@
   .add-dur:focus{outline:none;}
   .add-btn{font-size:13px;border:0.5px solid var(--border-mid);border-radius:var(--radius-md);background:var(--bg-primary);color:var(--text-primary);cursor:pointer;width:100%;display:flex;align-items:center;justify-content:center;font-family:var(--font);}
   .settings-section{margin-top:18px;padding-top:13px;border-top:0.5px solid var(--border-light);}
-  .settings-row{display:flex;align-items:center;justify-content:space-between;}
+  .settings-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .settings-row:last-child{margin-bottom:0;}
   .settings-label{font-size:12px;color:var(--text-secondary);}
   .fmt-toggle{display:flex;border:0.5px solid var(--border-mid);border-radius:var(--radius-md);overflow:hidden;}
   .fmt-btn{padding:6px 14px;font-size:12px;border:none;background:var(--bg-primary);color:var(--text-secondary);cursor:pointer;font-family:var(--font);}
   .fmt-btn.active{background:var(--bg-tertiary);color:var(--text-primary);font-weight:500;}
+  .io-btn{font-size:12px;padding:6px 12px;border:0.5px solid var(--border-mid);border-radius:var(--radius-md);background:var(--bg-primary);color:var(--text-primary);cursor:pointer;font-family:var(--font);}
+  .io-btn:active{transform:scale(0.97);}
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:100;align-items:center;justify-content:center;padding:16px;}
+  .modal-overlay.open{display:flex;}
+  .modal{background:var(--bg-primary);border-radius:var(--radius-md);padding:18px;width:100%;max-width:420px;}
+  .modal h2{font-size:15px;font-weight:600;margin-bottom:8px;color:var(--text-primary);}
+  .modal p{font-size:12px;color:var(--text-secondary);margin-bottom:10px;line-height:1.5;}
+  .modal textarea{width:100%;height:120px;font-size:12px;padding:8px;border:0.5px solid var(--border-mid);border-radius:var(--radius-md);background:var(--bg-secondary);color:var(--text-primary);font-family:monospace;resize:none;margin-bottom:10px;}
+  .modal textarea:focus{outline:none;}
+  .modal-btns{display:flex;gap:8px;justify-content:flex-end;}
+  .modal-btn{font-size:13px;padding:7px 14px;border:0.5px solid var(--border-mid);border-radius:var(--radius-md);background:var(--bg-secondary);color:var(--text-primary);cursor:pointer;font-family:var(--font);}
+  .modal-btn.primary{background:var(--text-primary);color:var(--bg-primary);border-color:var(--text-primary);}
+  .modal-btn:active{transform:scale(0.97);}
+  .modal-err{font-size:11px;color:var(--color-warn);min-height:14px;margin-bottom:6px;}
 </style>
 </head>
 <body>
@@ -134,6 +148,7 @@
     <button class="tab" id="tab-edit" onclick="showView('edit')">Edit activities</button>
   </div>
 
+  <!-- PLAN VIEW -->
   <div id="view-plan">
     <div class="preset-row">
       <button class="pbtn" onclick="applyPreset('weightlift')">Weightlift</button>
@@ -167,9 +182,17 @@
           <button class="fmt-btn" id="fmt24-plan" onclick="setFmt(24)">24h</button>
         </div>
       </div>
+      <div class="settings-row">
+        <span class="settings-label">Backup / restore configuration</span>
+        <div style="display:flex;gap:6px;">
+          <button class="io-btn" onclick="openExport()">Export</button>
+          <button class="io-btn" onclick="openImport()">Import</button>
+        </div>
+      </div>
     </div>
   </div>
 
+  <!-- EDIT VIEW -->
   <div id="view-edit" class="edit-panel">
     <div class="buf-row">
       <label>Buffer between activities (%)</label>
@@ -190,6 +213,40 @@
           <button class="fmt-btn" id="fmt24-edit" onclick="setFmt(24)">24h</button>
         </div>
       </div>
+      <div class="settings-row">
+        <span class="settings-label">Backup / restore configuration</span>
+        <div style="display:flex;gap:6px;">
+          <button class="io-btn" onclick="openExport()">Export</button>
+          <button class="io-btn" onclick="openImport()">Import</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT MODAL -->
+<div class="modal-overlay" id="export-modal">
+  <div class="modal">
+    <h2>Export configuration</h2>
+    <p>Copy the text below and save it somewhere safe — a note on your phone, email to yourself, etc. Paste it into Import on any device to restore your setup.</p>
+    <textarea id="export-text" readonly onclick="this.select()"></textarea>
+    <div class="modal-btns">
+      <button class="modal-btn primary" onclick="copyExport()">Copy to clipboard</button>
+      <button class="modal-btn" onclick="closeModal('export-modal')">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT MODAL -->
+<div class="modal-overlay" id="import-modal">
+  <div class="modal">
+    <h2>Import configuration</h2>
+    <p>Paste your previously exported configuration text below. This will replace all current settings, activities, and presets.</p>
+    <textarea id="import-text" placeholder="Paste exported configuration here..."></textarea>
+    <div class="modal-err" id="import-err"></div>
+    <div class="modal-btns">
+      <button class="modal-btn" onclick="closeModal('import-modal')">Cancel</button>
+      <button class="modal-btn primary" onclick="doImport()">Import</button>
     </div>
   </div>
 </div>
@@ -441,6 +498,50 @@ function addActivity(){
   document.getElementById('new-name').value='';document.getElementById('new-dur').value='15';
   save();renderActivityLists();renderEditList();
 }
+
+// Export / Import
+function openExport(){
+  document.getElementById('export-text').value=JSON.stringify(S,null,2);
+  document.getElementById('export-modal').className='modal-overlay open';
+}
+function copyExport(){
+  const ta=document.getElementById('export-text');
+  ta.select();
+  try{
+    navigator.clipboard.writeText(ta.value).then(()=>{
+      const btn=document.querySelector('#export-modal .modal-btn.primary');
+      btn.textContent='Copied!';
+      setTimeout(()=>{btn.textContent='Copy to clipboard';},2000);
+    }).catch(()=>document.execCommand('copy'));
+  } catch(e){document.execCommand('copy');}
+}
+function openImport(){
+  document.getElementById('import-text').value='';
+  document.getElementById('import-err').textContent='';
+  document.getElementById('import-modal').className='modal-overlay open';
+}
+function doImport(){
+  const raw=document.getElementById('import-text').value.trim();
+  const errEl=document.getElementById('import-err');
+  if(!raw){errEl.textContent='Paste your exported configuration first.';return;}
+  let parsed;
+  try{parsed=JSON.parse(raw);}catch(e){errEl.textContent='Invalid format — make sure you copied the full export text.';return;}
+  if(!parsed.activities||!Array.isArray(parsed.activities)){errEl.textContent='This does not look like a valid export.';return;}
+  S=parsed;
+  if(!S.presets)S.presets=JSON.parse(JSON.stringify(DEFAULT_PRESETS));
+  save();
+  closeModal('import-modal');
+  updateFmtButtons();
+  renderTimeInputs();
+  renderSummary();
+  renderActivityLists();
+}
+function closeModal(id){document.getElementById(id).className='modal-overlay';}
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(el=>{
+  el.addEventListener('click',function(e){if(e.target===this)closeModal(this.id);});
+});
+
 function updateFmtButtons(){
   ['fmt12-plan','fmt12-edit'].forEach(id=>{const el=document.getElementById(id);if(el)el.className='fmt-btn'+(S.fmt===12?' active':'');});
   ['fmt24-plan','fmt24-edit'].forEach(id=>{const el=document.getElementById(id);if(el)el.className='fmt-btn'+(S.fmt===24?' active':'');});
