@@ -186,10 +186,7 @@
       </div>
       <div class="settings-row">
         <span class="settings-label">Backup configuration</span>
-        <div style="display:flex;gap:6px;">
-          <button class="io-btn" onclick="doShare()">Share</button>
-          <button class="io-btn" onclick="doDownload()">Download</button>
-        </div>
+        <button class="io-btn" onclick="doDownload()">Download</button>
       </div>
       <div class="settings-row">
         <span class="settings-label">Restore configuration</span>
@@ -218,21 +215,14 @@
           <button class="fmt-btn" id="fmt12-edit" onclick="setFmt(12)">12h</button>
           <button class="fmt-btn" id="fmt24-edit" onclick="setFmt(24)">24h</button>
         </div>
-      </div>
       <div class="settings-row">
         <span class="settings-label">Backup configuration</span>
-        <div style="display:flex;gap:6px;">
-          <button class="io-btn" onclick="doShare()">Share</button>
-          <button class="io-btn" onclick="doDownload()">Download</button>
-        </div>
+        <button class="io-btn" onclick="doDownload()">Download</button>
       </div>
-      <div class="settings-row">
-        <span class="settings-label">Restore configuration</span>
-        <button class="io-btn" onclick="openImport()">Import</button>
       </div>
     </div>
   </div>
-  <div style="margin-top:24px;text-align:center;font-size:11px;color:var(--text-tertiary);">v1.1</div>
+  <div style="margin-top:24px;text-align:center;font-size:11px;color:var(--text-tertiary);">v1.2</div>
 </div>
 
 <!-- IMPORT MODAL -->
@@ -512,15 +502,6 @@ function makeExportFile(){
   const filename='daily-scheduler_'+stamp+'.json';
   const blob=new Blob([data],{type:'application/json'});
   return{blob,filename};
-}
-async function doShare(){
-  const{blob,filename}=makeExportFile();
-  const file=new File([blob],filename,{type:'application/json'});
-  if(navigator.canShare&&navigator.canShare({files:[file]})){
-    try{await navigator.share({files:[file],title:'Daily Scheduler Backup'});return;}
-    catch(e){if(e.name==='AbortError')return;}
-  }
-  alert('Sharing is not supported in this browser. Use Download instead.');
 }
 function doDownload(){
   const{blob,filename}=makeExportFile();
