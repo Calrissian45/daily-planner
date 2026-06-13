@@ -127,6 +127,8 @@
   .modal-btn.primary{background:var(--text-primary);color:var(--bg-primary);border-color:var(--text-primary);}
   .modal-btn:active{transform:scale(0.97);}
   .modal-err{font-size:11px;color:var(--color-warn);min-height:14px;margin-bottom:6px;}
+  .file-pick-btn{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:7px 14px;border:0.5px solid var(--border-mid);border-radius:var(--radius-md);background:var(--bg-secondary);color:var(--text-primary);cursor:pointer;font-family:var(--font);}
+  .file-pick-btn:active{transform:scale(0.97);}
 </style>
 </head>
 <body>
@@ -224,29 +226,22 @@
   </div>
 </div>
 
-<!-- EXPORT MODAL -->
-<div class="modal-overlay" id="export-modal">
-  <div class="modal">
-    <h2>Export configuration</h2>
-    <p>Copy the text below and save it somewhere safe — a note on your phone, email to yourself, etc. Paste it into Import on any device to restore your setup.</p>
-    <textarea id="export-text" readonly onclick="this.select()"></textarea>
-    <div class="modal-btns">
-      <button class="modal-btn primary" onclick="copyExport()">Copy to clipboard</button>
-      <button class="modal-btn" onclick="closeModal('export-modal')">Done</button>
-    </div>
-  </div>
-</div>
-
 <!-- IMPORT MODAL -->
 <div class="modal-overlay" id="import-modal">
   <div class="modal">
     <h2>Import configuration</h2>
-    <p>Paste your previously exported configuration text below. This will replace all current settings, activities, and presets.</p>
-    <textarea id="import-text" placeholder="Paste exported configuration here..."></textarea>
+    <p>Select your previously exported backup file (named <code style="font-size:11px;background:var(--bg-tertiary);padding:1px 4px;border-radius:3px;">daily-scheduler_YYYY-MM-DD_...</code>). This will replace all current settings, activities, and presets.</p>
+    <div style="margin-bottom:10px;">
+      <label class="file-pick-btn" id="file-pick-label">
+        <i class="ti ti-file-upload"></i> Choose file
+        <input type="file" id="import-file" accept=".json,application/json" style="display:none;">
+      </label>
+      <span id="file-name-display" style="font-size:12px;color:var(--text-secondary);margin-left:8px;"></span>
+    </div>
     <div class="modal-err" id="import-err"></div>
     <div class="modal-btns">
       <button class="modal-btn" onclick="closeModal('import-modal')">Cancel</button>
-      <button class="modal-btn primary" onclick="doImport()">Import</button>
+      <button class="modal-btn primary" id="import-confirm-btn" onclick="doImport()" disabled>Import</button>
     </div>
   </div>
 </div>
@@ -501,33 +496,58 @@ function addActivity(){
 
 // Export / Import
 function openExport(){
-  document.getElementById('export-text').value=JSON.stringify(S,null,2);
-  document.getElementById('export-modal').className='modal-overlay open';
+  const data=JSON.stringify(S,null,2);
+  const blob=new Blob([data],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  const now=new Date();
+  const pad=n=>String(n).padStart(2,'0');
+  const stamp=now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate())+'_'+pad(now.getHours())+'-'+pad(now.getMinutes())+'-'+pad(now.getSeconds());
+  a.download='daily-scheduler_'+stamp+'.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
-function copyExport(){
-  const ta=document.getElementById('export-text');
-  ta.select();
-  try{
-    navigator.clipboard.writeText(ta.value).then(()=>{
-      const btn=document.querySelector('#export-modal .modal-btn.primary');
-      btn.textContent='Copied!';
-      setTimeout(()=>{btn.textContent='Copy to clipboard';},2000);
-    }).catch(()=>document.execCommand('copy'));
-  } catch(e){document.execCommand('copy');}
-}
+let importFileData=null;
 function openImport(){
-  document.getElementById('import-text').value='';
+  importFileData=null;
   document.getElementById('import-err').textContent='';
+  document.getElementById('file-name-display').textContent='';
+  document.getElementById('import-file').value='';
+  document.getElementById('import-confirm-btn').disabled=true;
   document.getElementById('import-modal').className='modal-overlay open';
 }
+document.addEventListener('DOMContentLoaded',function(){
+  document.getElementById('import-file').addEventListener('change',function(){
+    const file=this.files[0];
+    if(!file)return;
+    document.getElementById('file-name-display').textContent=file.name;
+    document.getElementById('import-err').textContent='';
+    const reader=new FileReader();
+    reader.onload=function(e){
+      try{
+        importFileData=JSON.parse(e.target.result);
+        if(!importFileData.activities||!Array.isArray(importFileData.activities)){
+          document.getElementById('import-err').textContent='This does not look like a valid scheduler export.';
+          importFileData=null;
+          document.getElementById('import-confirm-btn').disabled=true;
+        } else {
+          document.getElementById('import-confirm-btn').disabled=false;
+        }
+      } catch(err){
+        document.getElementById('import-err').textContent='Could not read file — make sure it is a valid scheduler export.';
+        importFileData=null;
+        document.getElementById('import-confirm-btn').disabled=true;
+      }
+    };
+    reader.readAsText(file);
+  });
+});
 function doImport(){
-  const raw=document.getElementById('import-text').value.trim();
-  const errEl=document.getElementById('import-err');
-  if(!raw){errEl.textContent='Paste your exported configuration first.';return;}
-  let parsed;
-  try{parsed=JSON.parse(raw);}catch(e){errEl.textContent='Invalid format — make sure you copied the full export text.';return;}
-  if(!parsed.activities||!Array.isArray(parsed.activities)){errEl.textContent='This does not look like a valid export.';return;}
-  S=parsed;
+  if(!importFileData)return;
+  S=importFileData;
   if(!S.presets)S.presets=JSON.parse(JSON.stringify(DEFAULT_PRESETS));
   save();
   closeModal('import-modal');
