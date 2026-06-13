@@ -185,11 +185,15 @@
         </div>
       </div>
       <div class="settings-row">
-        <span class="settings-label">Backup / restore configuration</span>
+        <span class="settings-label">Backup configuration</span>
         <div style="display:flex;gap:6px;">
-          <button class="io-btn" onclick="openExport()">Export</button>
-          <button class="io-btn" onclick="openImport()">Import</button>
+          <button class="io-btn" onclick="doShare()">Share</button>
+          <button class="io-btn" onclick="doDownload()">Download</button>
         </div>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Restore configuration</span>
+        <button class="io-btn" onclick="openImport()">Import</button>
       </div>
     </div>
   </div>
@@ -216,11 +220,15 @@
         </div>
       </div>
       <div class="settings-row">
-        <span class="settings-label">Backup / restore configuration</span>
+        <span class="settings-label">Backup configuration</span>
         <div style="display:flex;gap:6px;">
-          <button class="io-btn" onclick="openExport()">Export</button>
-          <button class="io-btn" onclick="openImport()">Import</button>
+          <button class="io-btn" onclick="doShare()">Share</button>
+          <button class="io-btn" onclick="doDownload()">Download</button>
         </div>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">Restore configuration</span>
+        <button class="io-btn" onclick="openImport()">Import</button>
       </div>
     </div>
   </div>
@@ -496,22 +504,26 @@ function addActivity(){
 }
 
 // Export / Import
-async function openExport(){
+function makeExportFile(){
   const data=JSON.stringify(S,null,2);
   const now=new Date();
   const pad=n=>String(n).padStart(2,'0');
   const stamp=now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate())+'_'+pad(now.getHours())+'-'+pad(now.getMinutes())+'-'+pad(now.getSeconds());
   const filename='daily-scheduler_'+stamp+'.json';
   const blob=new Blob([data],{type:'application/json'});
+  return{blob,filename};
+}
+async function doShare(){
+  const{blob,filename}=makeExportFile();
   const file=new File([blob],filename,{type:'application/json'});
   if(navigator.canShare&&navigator.canShare({files:[file]})){
-    try{
-      await navigator.share({files:[file],title:'Daily Scheduler Backup'});
-      return;
-    } catch(e){
-      if(e.name==='AbortError')return;
-    }
+    try{await navigator.share({files:[file],title:'Daily Scheduler Backup'});return;}
+    catch(e){if(e.name==='AbortError')return;}
   }
+  alert('Sharing is not supported in this browser. Use Download instead.');
+}
+function doDownload(){
+  const{blob,filename}=makeExportFile();
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   a.href=url;a.download=filename;
