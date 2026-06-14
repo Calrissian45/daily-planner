@@ -11,14 +11,14 @@
     --text-primary:#111827;--text-secondary:#6b7280;--text-tertiary:#9ca3af;
     --border-light:rgba(0,0,0,0.10);--border-mid:rgba(0,0,0,0.20);
     --ok:#059669;--warn:#dc2626;--success:#059669;
-    --radius:8px;--font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;--fs:14px;
+    --radius:8px;--font:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;--fs:14px;--accent:#6366f1;
   }
   @media(prefers-color-scheme:dark){
     :root{
       --bg-primary:#1f2937;--bg-secondary:#111827;--bg-tertiary:#374151;
       --text-primary:#f9fafb;--text-secondary:#9ca3af;--text-tertiary:#6b7280;
       --border-light:rgba(255,255,255,0.08);--border-mid:rgba(255,255,255,0.18);
-      --ok:#34d399;--warn:#f87171;--success:#34d399;
+      --ok:#34d399;--warn:#f87171;--success:#34d399;--accent:#818cf8;
     }
   }
   *{box-sizing:border-box;margin:0;padding:0;}
@@ -34,9 +34,10 @@
   .tf input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
   .err{font-size:calc(var(--fs) * 0.7857);color:var(--warn);margin-top:2px;min-height:14px;}
   /* Summary cards */
-  .sum-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin:10px 0 12px;}
-  .sum-grid.row2c{grid-template-columns:1fr 1fr;}
+  .card-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:10px 0 12px;}
   .sc{background:var(--bg-primary);border-radius:var(--radius);padding:9px 10px;border:.5px solid var(--border-light);}
+  .sc.input-card{cursor:pointer;}
+  .sc.input-card .sv{color:var(--ok);}
   .sc .sl{font-size:calc(var(--fs) * 0.7143);color:var(--text-secondary);font-weight:500;text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px;}
   .sc .sv{font-size:calc(var(--fs) * 1.2143);font-weight:600;color:var(--text-primary);}
   .sc .ss{font-size:calc(var(--fs) * 0.7143);color:var(--text-tertiary);margin-top:1px;}
@@ -150,12 +151,9 @@
 <div class="app">
   <h1>Daily Schedule Planner</h1>
 
-  <div class="row2" id="time-inputs-grid"></div>
+  <!-- 8-card chronological grid -->
+  <div class="card-grid" id="card-grid"></div>
   <div class="err" id="time-err"></div>
-
-  <!-- Summary -->
-  <div class="sum-grid" id="sum-top"></div>
-  <div class="sum-grid row2c" id="sum-bot"></div>
 
   <!-- Tabs -->
   <div class="tabs">
@@ -285,7 +283,7 @@
     </div>
   </div>
 
-  <div class="version">v2.4</div>
+  <div class="version">v2.8</div>
 </div>
 
 <!-- IMPORT MODAL -->
@@ -353,7 +351,7 @@ function defState(){return{
   workStart:540,   // 9:00 AM in minutes
   dinner:1110,     // 6:30 PM
   sleepHrs:8,
-  earliestWake:270,// 4:30 AM
+
   morningOrder:[],afternoonOrder:[],afterdinnerOrder:[],
   fmt:12,
   presets:JSON.parse(JSON.stringify(DP))
@@ -434,64 +432,105 @@ function calc(){
   return{
     wakeMins,stopMins,workMins,bedTonight,lightsOut,
     mTotal,aTotal,dTotal,
-    morningWarn:wakeMins<S.earliestWake,
-    eveningWarn:stopMins<S.workStart
+
+
   };
 }
 
-// ── Render time inputs ──────────────────────────────────────────────────────
+// ── Hidden input overlay for editing ────────────────────────────────────────
+let activeEditKey=null;
+function openCardEdit(key){
+  activeEditKey=key;
+  let overlay=document.getElementById('card-edit-overlay');
+  if(!overlay){
+    overlay=document.createElement('div');
+    overlay.id='card-edit-overlay';
+    overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;';
+    overlay.addEventListener('click',function(e){if(e.target===this)closeCardEdit();});
+    document.body.appendChild(overlay);
+  }
+  const isSleep=key==='sleepHrs';
+  const label={workStart:'Work starts',dinner:'Dinner',sleepHrs:'Sleep (hours)'}[key];
+  const currentVal=isSleep?S.sleepHrs:m2disp(S[key]);
+  overlay.innerHTML=`
+    <div style="background:var(--bg-primary);border-radius:var(--radius);padding:20px;width:100%;max-width:320px;">
+      <div style="font-size:calc(var(--fs) * 0.8571);color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">${label}</div>
+      <input id="card-edit-inp" type="${isSleep?'number':'text'}"
+        value="${currentVal}"
+        ${isSleep?'min=4 max=12 step=0.5':'placeholder="'+ph()+'"'}
+        style="width:100%;padding:10px 12px;font-size:calc(var(--fs) * 1.1428);border:.5px solid var(--border-mid);border-radius:var(--radius);background:var(--bg-secondary);color:var(--text-primary);font-family:var(--font);margin-bottom:12px;"
+      >
+      <div id="card-edit-err" style="font-size:calc(var(--fs)*0.7857);color:var(--warn);min-height:14px;margin-bottom:8px;"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button onclick="closeCardEdit()" style="padding:7px 16px;font-size:calc(var(--fs)*0.9286);border:.5px solid var(--border-mid);border-radius:var(--radius);background:var(--bg-secondary);color:var(--text-primary);cursor:pointer;font-family:var(--font);">Cancel</button>
+        <button onclick="saveCardEdit()" style="padding:7px 16px;font-size:calc(var(--fs)*0.9286);border:.5px solid var(--border-mid);border-radius:var(--radius);background:var(--text-primary);color:var(--bg-primary);cursor:pointer;font-family:var(--font);">Save</button>
+      </div>
+    </div>`;
+  overlay.style.display='flex';
+  setTimeout(()=>{
+    const inp=document.getElementById('card-edit-inp');
+    if(inp){inp.focus();inp.select();}
+  },50);
+}
+function saveCardEdit(){
+  const key=activeEditKey;
+  const inp=document.getElementById('card-edit-inp');
+  const errEl=document.getElementById('card-edit-err');
+  if(key==='sleepHrs'){
+    const v=parseFloat(inp.value);
+    if(!v||v<4||v>12){errEl.textContent='Enter a value between 4 and 12.';return;}
+    S.sleepHrs=v;save();closeCardEdit();renderAll();
+  } else {
+    const v=parseTime(inp.value);
+    if(v===null){errEl.textContent='Invalid time. Use: '+ph();return;}
+    S[key]=v;save();closeCardEdit();renderAll();
+  }
+}
+function closeCardEdit(){
+  const overlay=document.getElementById('card-edit-overlay');
+  if(overlay)overlay.style.display='none';
+  activeEditKey=null;
+}
+// allow Enter key to save
+document.addEventListener('keydown',function(e){
+  if(e.key==='Enter'&&activeEditKey)saveCardEdit();
+  if(e.key==='Escape'&&activeEditKey)closeCardEdit();
+});
+
+// ── Render time inputs (kept for import restore) ─────────────────────────────
 function renderTimeInputs(){
-  const grid=document.getElementById('time-inputs-grid');
-  grid.innerHTML='';
-  const fields=[
-    {key:'workStart', label:'Work starts',      val:S.workStart},
-    {key:'dinner',    label:'Dinner',            val:S.dinner},
-    {key:'sleepHrs',  label:'Sleep (hours)',     val:null},
-    {key:'earliestWake',label:'Earliest wake-up',val:S.earliestWake},
-  ];
-  fields.forEach(f=>{
-    const div=document.createElement('div');div.className='tf';
-    const lbl=document.createElement('label');lbl.textContent=f.label;div.appendChild(lbl);
-    if(f.key==='sleepHrs'){
-      const inp=document.createElement('input');
-      inp.type='number';inp.value=S.sleepHrs;inp.min=4;inp.max=12;inp.step=0.5;
-      inp.style.MozAppearance='textfield';
-      inp.addEventListener('change',()=>{S.sleepHrs=parseFloat(inp.value)||8;save();renderAll();});
-      div.appendChild(inp);
-    } else {
-      const inp=document.createElement('input');
-      inp.type='text';inp.value=m2disp(f.val);inp.placeholder=ph();
-      inp.addEventListener('change',()=>{
-        const v=parseTime(inp.value);
-        const err=document.getElementById('time-err');
-        if(v===null){err.textContent='Invalid time for "'+f.label+'". Use: '+ph();inp.style.borderColor='#ef4444';return;}
-        err.textContent='';inp.style.borderColor='';
-        S[f.key]=v;inp.value=m2disp(v);save();renderAll();
-      });
-      div.appendChild(inp);
-    }
-    grid.appendChild(div);
-  });
+  // no-op: inputs are now inline in cards
 }
 
-// ── Render summary ──────────────────────────────────────────────────────────
+// ── Render cards (chronological 8-card grid) ────────────────────────────────
 function renderSummary(){
   const c=calc();
-  const top=document.getElementById('sum-top');
-  const bot=document.getElementById('sum-bot');
-  top.innerHTML='';
-  bot.innerHTML='';
-  function card(parent,label,value,sub,warn){
+  const grid=document.getElementById('card-grid');
+  grid.innerHTML='';
+
+  function outCard(label,value,sub,warn){
     const d=document.createElement('div');
     d.className='sc'+(warn===true?' warn':warn===false?' ok':'');
     d.innerHTML='<div class="sl">'+label+'</div><div class="sv">'+value+'</div>'+(sub?'<div class="ss">'+sub+'</div>':'');
-    parent.appendChild(d);
+    grid.appendChild(d);
   }
-  card(top,'Wake up by',m2disp(c.wakeMins),durLabel(c.mTotal)+' of activities',c.morningWarn);
-  card(top,'Bed (night before)',m2disp(c.bedTonight),'to get '+S.sleepHrs+'h sleep',null);
-  card(top,'Stop work by',m2disp(c.stopMins),durLabel(c.aTotal)+' of activities',c.eveningWarn);
-  card(bot,'Work available',durLabel(c.workMins),m2disp(S.workStart)+'–'+m2disp(c.stopMins),null);
-  card(bot,'Bed (night after)',m2disp(c.lightsOut),'after dinner activities',null);
+  function inCard(label,value,sub,key){
+    const d=document.createElement('div');
+    d.className='sc input-card';
+    d.innerHTML='<div class="sl">'+label+'</div><div class="sv">'+value+'</div>'+(sub?'<div class="ss">'+sub+'</div>':'');
+    d.addEventListener('click',()=>openCardEdit(key));
+    grid.appendChild(d);
+  }
+
+  // Chronological order
+  outCard('Bed (night before)', m2disp(c.bedTonight), 'latest', null);
+  inCard('Sleep',               S.sleepHrs+'h',       null, 'sleepHrs');
+  outCard('Wake up by',         m2disp(c.wakeMins),   durLabel(c.mTotal)+' of activities', null);
+  inCard('Work starts',         m2disp(S.workStart),  null, 'workStart');
+  outCard('Work available',     durLabel(c.workMins),  m2disp(S.workStart)+'–'+m2disp(c.stopMins), null);
+  outCard('Stop work by',       m2disp(c.stopMins),   durLabel(c.aTotal)+' of activities', null);
+  inCard('Dinner',              m2disp(S.dinner),     null, 'dinner');
+  outCard('Bed (night after)',  m2disp(c.lightsOut),  'earliest', null);
 }
 
 // ── Render plan view ────────────────────────────────────────────────────────
@@ -605,7 +644,7 @@ function renderSchedule(){
   // After dinner block
   const lightsOut=schedRows(afterdinner,S.dinner);
   if(afterdinner.length){
-    anchor(lightsOut,'Bed (night after)');
+    anchor(lightsOut,'Earliest bed (night after)');
   }
 }
 
