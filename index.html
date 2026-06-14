@@ -98,8 +98,12 @@
   .buf-inp{width:52px;font-size:13px;border:.5px solid var(--border-mid);border-radius:var(--radius);padding:5px 6px;text-align:center;background:var(--bg-primary);color:var(--text-primary);font-family:var(--font);}
   .buf-inp::-webkit-inner-spin-button{-webkit-appearance:none;}
   .elist{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;}
-  .erow{display:grid;grid-template-columns:1fr 52px 32px;gap:6px;align-items:center;padding:7px 9px;background:var(--bg-primary);border:.5px solid var(--border-light);border-radius:var(--radius);}
-  .erow-lbl{display:grid;grid-template-columns:1fr 52px 32px;gap:6px;padding:0 9px 4px;font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.04em;}
+  .erow{display:grid;grid-template-columns:18px 1fr 52px 32px;gap:6px;align-items:center;padding:7px 9px;background:var(--bg-primary);border:.5px solid var(--border-light);border-radius:var(--radius);}
+  .erow.drag-over{border-color:var(--border-mid);background:var(--bg-tertiary);}
+  .erow.edragging{opacity:.35;}
+  .erow-lbl{display:grid;grid-template-columns:18px 1fr 52px 32px;gap:6px;padding:0 9px 4px;font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.04em;}
+  .sort-btn{font-size:12px;padding:5px 10px;border:.5px solid var(--border-mid);border-radius:var(--radius);background:var(--bg-primary);color:var(--text-secondary);cursor:pointer;font-family:var(--font);}
+  .sort-btn:active{transform:scale(.97);}
   .ename-inp{font-size:13px;padding:4px 6px;border:.5px solid var(--border-mid);border-radius:4px;background:var(--bg-secondary);color:var(--text-primary);width:100%;min-width:0;font-family:var(--font);}
   .ename-inp:focus{outline:none;}
   .edur-inp{font-size:13px;padding:4px 6px;border:.5px solid var(--border-mid);border-radius:4px;background:var(--bg-secondary);color:var(--text-primary);width:100%;text-align:center;font-family:var(--font);}
@@ -225,7 +229,10 @@
       <label>Buffer between activities (%)</label>
       <input class="buf-inp" type="number" id="global-buffer" min="0" max="50">
     </div>
-    <div class="erow-lbl"><span>Activity name</span><span style="text-align:center">Min</span><span></span></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+      <div class="erow-lbl" style="flex:1;margin-bottom:0;"><span></span><span>Activity name</span><span style="text-align:center">Min</span><span></span></div>
+      <button class="sort-btn" onclick="sortAlpha()">A&ndash;Z</button>
+    </div>
     <div class="elist" id="edit-list"></div>
     <div class="add-row">
       <input class="add-name" type="text" id="new-name" placeholder="New activity name">
@@ -250,7 +257,7 @@
     </div>
   </div>
 
-  <div class="version">v2.0</div>
+  <div class="version">v2.1</div>
 </div>
 
 <!-- IMPORT MODAL -->
@@ -597,23 +604,37 @@ function saveAsPreset(){
 }
 
 // ── Edit view ────────────────────────────────────────────────────────────────
+let eDragId=null;
 function renderEditList(){
   const el=document.getElementById('edit-list');el.innerHTML='';
   document.getElementById('global-buffer').value=S.buffer;
   S.activities.forEach(act=>{
-    const row=document.createElement('div');row.className='erow';
+    const row=document.createElement('div');
+    row.className='erow';row.draggable=true;row.dataset.id=act.id;
+    // drag handle
+    const dh=document.createElement('span');dh.className='drag-handle';
+    dh.innerHTML='<i class="ti ti-grip-vertical"></i>';
+    dh.style.fontSize='13px';
+    row.appendChild(dh);
+    // name input
     const ni=document.createElement('input');ni.type='text';ni.className='ename-inp';ni.value=act.name;
     ni.setAttribute('data-id',act.id);
     ni.addEventListener('change',function(){
       const a=S.activities.find(x=>x.id===this.getAttribute('data-id'));
       if(a&&this.value.trim()){a.name=this.value.trim();save();renderAll();}
     });
+    // prevent drag triggering when typing
+    ni.addEventListener('mousedown',e=>e.stopPropagation());
+    ni.addEventListener('touchstart',e=>e.stopPropagation());
+    // duration input
     const di=document.createElement('input');di.type='number';di.className='edur-inp';di.value=act.dur;di.min=1;
     di.setAttribute('data-id',act.id);
     di.addEventListener('change',function(){
       const a=S.activities.find(x=>x.id===this.getAttribute('data-id'));
       const n=parseInt(this.value);if(a&&n>0){a.dur=n;save();renderAll();}
     });
+    di.addEventListener('mousedown',e=>e.stopPropagation());
+    // delete button
     const db=document.createElement('button');db.className='del-btn';db.title='Remove';
     db.innerHTML='<i class="ti ti-trash"></i>';
     db.setAttribute('data-id',act.id);
@@ -625,9 +646,39 @@ function renderEditList(){
       S.afterdinnerOrder=S.afterdinnerOrder.filter(x=>x!==id);
       save();renderAll();renderEditList();
     });
+    // edit list drag events
+    row.addEventListener('dragstart',e=>{
+      eDragId=e.currentTarget.dataset.id;
+      e.currentTarget.classList.add('edragging');
+      e.dataTransfer.effectAllowed='move';
+    });
+    row.addEventListener('dragover',e=>{
+      e.preventDefault();
+      document.querySelectorAll('.erow').forEach(r=>r.classList.remove('drag-over'));
+      e.currentTarget.classList.add('drag-over');
+    });
+    row.addEventListener('dragend',()=>{
+      document.querySelectorAll('.erow').forEach(r=>{r.classList.remove('edragging');r.classList.remove('drag-over');});
+    });
+    row.addEventListener('drop',e=>{
+      e.preventDefault();
+      const tId=e.currentTarget.dataset.id;
+      if(!eDragId||eDragId===tId)return;
+      const fi=S.activities.findIndex(a=>a.id===eDragId);
+      const ti=S.activities.findIndex(a=>a.id===tId);
+      if(fi===-1||ti===-1)return;
+      const [moved]=S.activities.splice(fi,1);
+      S.activities.splice(ti,0,moved);
+      save();renderEditList();
+    });
     row.appendChild(ni);row.appendChild(di);row.appendChild(db);
     el.appendChild(row);
   });
+}
+
+function sortAlpha(){
+  S.activities.sort((a,b)=>a.name.localeCompare(b.name));
+  save();renderEditList();
 }
 
 document.getElementById('global-buffer').addEventListener('change',function(){
