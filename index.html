@@ -99,10 +99,10 @@
   .buf-inp{width:52px;font-size:calc(var(--fs) * 0.9286);border:.5px solid var(--border-mid);border-radius:var(--radius);padding:5px 6px;text-align:center;background:var(--bg-primary);color:var(--text-primary);font-family:var(--font);}
   .buf-inp::-webkit-inner-spin-button{-webkit-appearance:none;}
   .elist{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;}
-  .erow{display:grid;grid-template-columns:18px 1fr 52px 32px;gap:6px;align-items:center;padding:7px 9px;background:var(--bg-primary);border:.5px solid var(--border-light);border-radius:var(--radius);}
+  .erow{display:grid;grid-template-columns:18px 1fr 40px 44px 32px;gap:5px;align-items:center;padding:7px 9px;background:var(--bg-primary);border:.5px solid var(--border-light);border-radius:var(--radius);}
   .erow.drag-over{border-color:var(--border-mid);background:var(--bg-tertiary);}
   .erow.edragging{opacity:.35;}
-  .erow-lbl{display:grid;grid-template-columns:18px 1fr 52px 32px;gap:6px;padding:0 9px 4px;font-size:calc(var(--fs) * 0.7143);color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.04em;}
+  .erow-lbl{display:grid;grid-template-columns:18px 1fr 40px 44px 32px;gap:5px;padding:0 9px 4px;font-size:calc(var(--fs) * 0.7143);color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.04em;}
   .sort-btn{font-size:calc(var(--fs) * 0.8571);padding:5px 10px;border:.5px solid var(--border-mid);border-radius:var(--radius);background:var(--bg-primary);color:var(--text-secondary);cursor:pointer;font-family:var(--font);}
   .sort-btn:active{transform:scale(.97);}
   .ename-inp{font-size:calc(var(--fs) * 0.9286);padding:4px 6px;border:.5px solid var(--border-mid);border-radius:4px;background:var(--bg-secondary);color:var(--text-primary);width:100%;min-width:0;font-family:var(--font);}
@@ -111,7 +111,7 @@
   .edur-inp::-webkit-inner-spin-button{-webkit-appearance:none;}
   .edur-inp:focus{outline:none;}
   .del-btn{background:none;border:none;cursor:pointer;color:#ef4444;font-size:calc(var(--fs) * 1.1429);padding:0;display:flex;align-items:center;justify-content:center;}
-  .add-row{display:grid;grid-template-columns:1fr 52px 44px;gap:6px;align-items:stretch;}
+  .add-row{display:grid;grid-template-columns:1fr 40px 44px 44px;gap:5px;align-items:stretch;}
   .add-name{font-size:calc(var(--fs) * 0.9286);padding:7px 9px;border:.5px solid var(--border-mid);border-radius:var(--radius);background:var(--bg-primary);color:var(--text-primary);font-family:var(--font);width:100%;}
   .add-name:focus{outline:none;}
   .add-dur{font-size:calc(var(--fs) * 0.9286);padding:7px 6px;border:.5px solid var(--border-mid);border-radius:var(--radius);background:var(--bg-primary);color:var(--text-primary);text-align:center;font-family:var(--font);width:100%;}
@@ -243,18 +243,19 @@
 
   <!-- EDIT VIEW -->
   <div id="view-edit" class="edit-panel">
-    <div class="buf-row">
-      <label>Buffer between activities (%)</label>
-      <input class="buf-inp" type="number" id="global-buffer" min="0" max="50">
-    </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-      <div class="erow-lbl" style="flex:1;margin-bottom:0;"><span></span><span>Activity name</span><span style="text-align:center">Min</span><span></span></div>
-      <button class="sort-btn" onclick="sortAlpha()">A&ndash;Z</button>
+
+    <div style="display:grid;grid-template-columns:18px 1fr 40px 44px 32px;gap:5px;padding:0 9px;margin-bottom:4px;align-items:center;">
+      <span></span>
+      <span style="font-size:calc(var(--fs) * 0.7143);color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.04em;">Activity name</span>
+      <span style="font-size:calc(var(--fs) * 0.7143);color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.04em;text-align:center;">Prep</span>
+      <span style="font-size:calc(var(--fs) * 0.7143);color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.04em;text-align:center;">Dur</span>
+      <button class="sort-btn" style="padding:2px 0;font-size:calc(var(--fs) * 0.7143);" onclick="sortAlpha()">A&ndash;Z</button>
     </div>
     <div class="elist" id="edit-list"></div>
     <div class="add-row">
       <input class="add-name" type="text" id="new-name" placeholder="New activity name">
-      <input class="add-dur" type="number" id="new-dur" min="1" value="15">
+      <input class="add-dur" type="number" id="new-prep" min="0" value="0" placeholder="prep">
+      <input class="add-dur" type="number" id="new-dur" min="1" value="15" placeholder="dur">
       <button class="add-btn" onclick="addActivity()">Add</button>
     </div>
     <div class="settings-section">
@@ -283,7 +284,7 @@
     </div>
   </div>
 
-  <div class="version">v2.8</div>
+  <div class="version">v3.1</div>
 </div>
 
 <!-- IMPORT MODAL -->
@@ -307,21 +308,21 @@
 <script>
 // ── Default activities ──────────────────────────────────────────────────────
 const DA=[
-  {id:'wakeup',   name:'Wake-up',          dur:20, slot:'off'},
-  {id:'mornrout', name:'Morning routine',   dur:20, slot:'off'},
-  {id:'exercise', name:'Exercise',          dur:60, slot:'off'},
-  {id:'warmup',   name:'Stretch / warm-up', dur:10, slot:'off'},
-  {id:'cooldown', name:'Cool down',         dur:10, slot:'off'},
-  {id:'shower',   name:'Shower',            dur:15, slot:'off'},
-  {id:'breakfast',name:'Breakfast',         dur:20, slot:'off'},
-  {id:'packlunch',name:'Pack lunch',        dur:10, slot:'off'},
-  {id:'commuteto',name:'Commute to work',   dur:30, slot:'off'},
-  {id:'commutehm',name:'Commute home',      dur:30, slot:'off'},
-  {id:'hobby',    name:'Hobby',             dur:30, slot:'off'},
-  {id:'reading',  name:'Reading',           dur:30, slot:'off'},
-  {id:'medpray',  name:'Meditation / prayer',dur:15,slot:'off'},
-  {id:'walk',     name:'Walk',              dur:30, slot:'off'},
-  {id:'evenrout', name:'Evening routine',   dur:20, slot:'off'},
+  {id:'wakeup', name:'Wake-up', dur:20, prep:0, slot:'off'},
+  {id:'mornrout', name:'Morning routine', dur:20, prep:0, slot:'off'},
+  {id:'exercise', name:'Exercise', dur:60, prep:0, slot:'off'},
+  {id:'warmup', name:'Stretch / warm-up', dur:10, prep:0, slot:'off'},
+  {id:'cooldown', name:'Cool down', dur:10, prep:0, slot:'off'},
+  {id:'shower', name:'Shower', dur:15, prep:0, slot:'off'},
+  {id:'breakfast', name:'Breakfast', dur:20, prep:0, slot:'off'},
+  {id:'packlunch', name:'Pack lunch', dur:10, prep:0, slot:'off'},
+  {id:'commuteto', name:'Commute to work', dur:30, prep:0, slot:'off'},
+  {id:'commutehm', name:'Commute home', dur:30, prep:0, slot:'off'},
+  {id:'hobby', name:'Hobby', dur:30, prep:0, slot:'off'},
+  {id:'reading', name:'Reading', dur:30, prep:0, slot:'off'},
+  {id:'medpray', name:'Meditation / prayer', dur:15, prep:0, slot:'off'},
+  {id:'walk', name:'Walk', dur:30, prep:0, slot:'off'},
+  {id:'evenrout', name:'Evening routine', dur:20, prep:0, slot:'off'},
 ];
 
 // ── Default presets ─────────────────────────────────────────────────────────
@@ -347,7 +348,6 @@ const DP={
 function loadState(){try{const s=localStorage.getItem('dsp_v2');if(s)return JSON.parse(s);}catch(e){}return null;}
 function defState(){return{
   activities:JSON.parse(JSON.stringify(DA)),
-  buffer:10,
   workStart:540,   // 9:00 AM in minutes
   dinner:1110,     // 6:30 PM
   sleepHrs:8,
@@ -399,7 +399,7 @@ function durLabel(m){
   const h=Math.floor(m/60),mn=m%60;
   if(h===0)return mn+'m';if(mn===0)return h+'h';return h+'h '+mn+'m';
 }
-function buf(dur){return dur*(1+S.buffer/100);}
+function total(a){return (a.prep||0)+(a.dur||0);}
 
 // ── Slotted activities ──────────────────────────────────────────────────────
 function slotted(){
@@ -421,9 +421,9 @@ function slotted(){
 // ── Calculations ─────────────────────────────────────────────────────────────
 function calc(){
   const{morning,afternoon,afterdinner}=slotted();
-  const mTotal=morning.reduce((s,a)=>s+buf(a.dur),0);
-  const aTotal=afternoon.reduce((s,a)=>s+buf(a.dur),0);
-  const dTotal=afterdinner.reduce((s,a)=>s+buf(a.dur),0);
+  const mTotal=morning.reduce((s,a)=>s+total(a),0);
+  const aTotal=afternoon.reduce((s,a)=>s+total(a),0);
+  const dTotal=afterdinner.reduce((s,a)=>s+total(a),0);
   const wakeMins=S.workStart-mTotal;
   const stopMins=S.dinner-aTotal;
   const workMins=Math.max(0,stopMins-S.workStart);
@@ -560,7 +560,7 @@ function renderPlanBlock(listId,acts,slot){
       h.innerHTML='<i class="ti ti-grip-vertical"></i>';row.appendChild(h);
     }
     const ns=document.createElement('span');ns.className='aname';ns.textContent=a.name;row.appendChild(ns);
-    const ds=document.createElement('span');ds.className='adur';ds.textContent=Math.round(buf(a.dur))+'m';row.appendChild(ds);
+    const ds=document.createElement('span');ds.className='adur';{ const p=a.prep||0; const d=a.dur||0; ds.textContent=p>0?(p+'+'+ d+'m'):(d+'m'); }row.appendChild(ds);
     const btns=document.createElement('div');btns.className='slot-btns';
     [['morning','AM'],['afternoon','PM'],['afterdinner','Eve'],['off','Off']].forEach(([s,label])=>{
       const b=document.createElement('button');
@@ -623,10 +623,13 @@ function renderSchedule(){
     let t=startTime;
     acts.forEach(a=>{
       const row=document.createElement('div');row.className='sched-row';
-      const buffered=buf(a.dur);
-      row.innerHTML='<span class="sched-time">'+m2disp(t)+'</span><span class="sched-name">'+a.name+'</span><span class="sched-dur">'+Math.round(buffered)+'m</span>';
+      const tot=total(a);
+      const prepMins=a.prep||0;
+      const durMins=a.dur||0;
+      const subLabel=prepMins>0?(prepMins+'m prep + '+durMins+'m'):(durMins+'m');
+      row.innerHTML='<span class="sched-time">'+m2disp(t)+'</span><span class="sched-name">'+a.name+'</span><span class="sched-dur">'+subLabel+'</span>';
       el.appendChild(row);
-      t+=buffered;
+      t+=tot;
     });
     return t;
   }
@@ -674,7 +677,6 @@ function saveAsPreset(){
 let eDragId=null;
 function renderEditList(){
   const el=document.getElementById('edit-list');el.innerHTML='';
-  document.getElementById('global-buffer').value=S.buffer;
   S.activities.forEach(act=>{
     const row=document.createElement('div');
     row.className='erow';row.draggable=true;row.dataset.id=act.id;
@@ -690,9 +692,16 @@ function renderEditList(){
       const a=S.activities.find(x=>x.id===this.getAttribute('data-id'));
       if(a&&this.value.trim()){a.name=this.value.trim();save();renderAll();}
     });
-    // prevent drag triggering when typing
     ni.addEventListener('mousedown',e=>e.stopPropagation());
     ni.addEventListener('touchstart',e=>e.stopPropagation());
+    // prep input
+    const pi=document.createElement('input');pi.type='number';pi.className='edur-inp';pi.value=act.prep||0;pi.min=0;
+    pi.setAttribute('data-id',act.id);
+    pi.addEventListener('change',function(){
+      const a=S.activities.find(x=>x.id===this.getAttribute('data-id'));
+      const n=parseInt(this.value);if(a&&n>=0){a.prep=n;save();renderAll();}
+    });
+    pi.addEventListener('mousedown',e=>e.stopPropagation());
     // duration input
     const di=document.createElement('input');di.type='number';di.className='edur-inp';di.value=act.dur;di.min=1;
     di.setAttribute('data-id',act.id);
@@ -738,7 +747,7 @@ function renderEditList(){
       S.activities.splice(ti,0,moved);
       save();renderEditList();
     });
-    row.appendChild(ni);row.appendChild(di);row.appendChild(db);
+    row.appendChild(ni);row.appendChild(pi);row.appendChild(di);row.appendChild(db);
     el.appendChild(row);
   });
 }
@@ -748,16 +757,16 @@ function sortAlpha(){
   save();renderEditList();
 }
 
-document.getElementById('global-buffer').addEventListener('change',function(){
-  S.buffer=parseInt(this.value)||10;save();renderAll();
-});
+
 
 function addActivity(){
   const name=document.getElementById('new-name').value.trim();
+  const prep=parseInt(document.getElementById('new-prep').value)||0;
   const dur=parseInt(document.getElementById('new-dur').value);
   if(!name||!dur)return;
-  S.activities.push({id:'act_'+Date.now(),name,dur,slot:'off'});
+  S.activities.push({id:'act_'+Date.now(),name,prep,dur,slot:'off'});
   document.getElementById('new-name').value='';
+  document.getElementById('new-prep').value='0';
   document.getElementById('new-dur').value='15';
   save();renderAll();renderEditList();
 }
@@ -811,6 +820,7 @@ function doImport(){
   if(!importFileData)return;
   S=importFileData;
   if(!S.presets)S.presets=JSON.parse(JSON.stringify(DP));
+  S.activities.forEach(a=>{if(a.prep===undefined)a.prep=0;});
   if(!S.afternoonOrder)S.afternoonOrder=[];
   if(!S.afterdinnerOrder)S.afterdinnerOrder=[];
   save();closeModal('import-modal');
