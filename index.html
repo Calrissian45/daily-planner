@@ -285,7 +285,7 @@
     </div>
   </div>
 
-  <div class="version">v2.2</div>
+  <div class="version">v2.4</div>
 </div>
 
 <!-- IMPORT MODAL -->
@@ -488,10 +488,10 @@ function renderSummary(){
     parent.appendChild(d);
   }
   card(top,'Wake up by',m2disp(c.wakeMins),durLabel(c.mTotal)+' of activities',c.morningWarn);
-  card(top,'Bed tonight',m2disp(c.bedTonight),'to get '+S.sleepHrs+'h sleep',null);
+  card(top,'Bed (night before)',m2disp(c.bedTonight),'to get '+S.sleepHrs+'h sleep',null);
   card(top,'Stop work by',m2disp(c.stopMins),durLabel(c.aTotal)+' of activities',c.eveningWarn);
   card(bot,'Work available',durLabel(c.workMins),m2disp(S.workStart)+'–'+m2disp(c.stopMins),null);
-  card(bot,'Lights out',m2disp(c.lightsOut),durLabel(c.dTotal)+' after dinner',null);
+  card(bot,'Bed (night after)',m2disp(c.lightsOut),'after dinner activities',null);
 }
 
 // ── Render plan view ────────────────────────────────────────────────────────
@@ -605,7 +605,7 @@ function renderSchedule(){
   // After dinner block
   const lightsOut=schedRows(afterdinner,S.dinner);
   if(afterdinner.length){
-    anchor(lightsOut,'Lights out (earliest)');
+    anchor(lightsOut,'Bed (night after)');
   }
 }
 
