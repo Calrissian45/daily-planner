@@ -284,7 +284,7 @@
     </div>
   </div>
 
-  <div class="version">v3.1</div>
+  <div class="version">v3.2</div>
 </div>
 
 <!-- IMPORT MODAL -->
@@ -849,6 +849,7 @@ function showView(v){
   });
   if(v==='edit')renderEditList();
   if(v==='sched')renderSchedule();
+  S.lastView=v;save();
 }
 
 // ── Master render ─────────────────────────────────────────────────────────────
@@ -878,6 +879,7 @@ applyFs(S.fontSize||FS_DEFAULT);
 updateFmtButtons();
 renderTimeInputs();
 renderAll();
+showView(S.lastView||'plan');
 </script>
 </body>
 </html>
