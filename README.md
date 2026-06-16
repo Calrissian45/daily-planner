@@ -21,7 +21,7 @@ Editable values are shown in green — tap any green card to edit it. All calcul
 
 ## How to use it
 
-Open the app in any modern browser by visiting the URL above. On Android, open it in Chrome and tap the three-dot menu → **Add to Home screen** to install it as a shortcut on your home screen for quick access.
+Open the app in any modern browser by visiting the URL above. On Android, open it in Chrome and tap the three-dot menu → **Add to Home screen** to install it as a shortcut on your home screen for quick access. The app remembers which tab you were last on and opens there automatically.
 
 ## Three activity blocks
 
@@ -38,13 +38,13 @@ Tap a button to assign the activity to that block. All calculated values update 
 
 ### Plan tab
 
-The main planning view. Shows the activity blocks and all scheduled/unscheduled activities. Use this to set up your day by assigning activities to blocks.
+The main planning view. Shows the activity blocks and all scheduled and unscheduled activities. Use this to set up your day by assigning activities to blocks.
 
-At the top, preset buttons let you load a saved day configuration with one tap. The app opens on whichever tab you were last using.
+At the top, four quick-access buttons let you load a saved configuration instantly: **Clear** (removes all assignments) plus the **top three presets** from your manage list.
 
 ### Schedule tab
 
-Shows your full day as a sequential timeline with a start time listed for each activity, anchored by the four fixed points: wake-up, work start, stop work, dinner, and bed (night after). Use this view during the day to track whether you are running on time.
+Shows your full day as a sequential timeline with a start time listed for each activity, anchored by the four fixed points: wake-up, work start, stop work, dinner, and bed (night after). Use this view during the day to track whether you are running on time. Each activity shows its prep time and duration separately when prep time is greater than zero.
 
 ### Edit tab
 
@@ -67,23 +67,28 @@ The total time consumed by an activity is Prep + Duration. In the plan view, act
 
 ## Presets
 
-Preset buttons at the top of the Plan tab let you load a saved activity configuration for common day types with one tap. After loading a preset you can freely adjust any assignments.
+### Quick buttons
+Four buttons appear at the top of the Plan tab: **Clear** plus the top three presets from your manage list. Tapping a preset button instantly loads that configuration. The top three are determined by the order in the manage list — drag to reorder and the buttons update immediately.
 
-Preset management is in the settings section at the bottom of the Plan tab:
+### Managing presets
+Preset management is in the settings section at the bottom of the Plan tab. Each preset row shows:
 
-- **Rename** a preset by editing its name field
-- **Update** a preset to overwrite it with the current plan
-- **Delete** a preset with the trash icon
-- **Add** a new preset by typing a name and tapping **Save plan**
+- A **grip handle** — drag to reorder. The top three presets in the list are highlighted with a green left border and appear as quick buttons.
+- A **play button** — tap to load the preset
+- An **editable name field** — tap to rename the preset
+- An **Update button** — overwrites the preset with the current plan
+- A **trash icon** — deletes the preset (asks for confirmation)
+
+To add a new preset, configure your morning, afternoon, and after-dinner activities, then type a name in the field at the bottom of the manage list and tap **Save plan**.
 
 ## Settings
 
 Settings are at the bottom of each tab:
 
-- **Font size** — tap + or − to increase or decrease text size across the whole app, from 11px to 22px
-- **Time format** — toggle between 12h and 24h display; applies to all times in the app including input cards
+- **Font size** — tap + or − to adjust text size across the whole app, from 11px to 22px
+- **Time format** — toggle between 12h and 24h display; applies to all times in the app including the editable cards
 - **Backup / restore** — Export downloads a timestamped JSON backup of your full configuration; Import restores from a previously exported file
-- **Manage presets** — add, rename, update, and delete presets (Plan tab only)
+- **Manage presets** — add, rename, reorder, update, and delete presets (Plan tab only)
 
 ## Data and privacy
 
