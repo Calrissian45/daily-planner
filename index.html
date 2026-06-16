@@ -285,7 +285,7 @@
     </div>
   </div>
 
-  <div class="version">v3.9</div>
+  <div class="version">v4.0</div>
 </div>
 
 <!-- IMPORT MODAL -->
@@ -344,6 +344,7 @@ function defState(){return{
   morningOrder:[],afternoonOrder:[],afterdinnerOrder:[],
   fmt:12,
   activePreset:null,
+  lastLoadedKey:null,
   presets:JSON.parse(JSON.stringify(DP))
 };}
 let S=loadState()||defState();
@@ -596,6 +597,7 @@ function onDrop(e){
   const ord=S[key],fi=ord.indexOf(dragId),ti=ord.indexOf(tId);
   if(fi===-1||ti===-1)return;
   ord.splice(fi,1);ord.splice(ti,0,dragId);
+  S.lastLoadedKey=null;
   save();renderAll();updatePresetStatus();
 }
 
@@ -672,12 +674,13 @@ function detectActivePreset(){
 }
 
 function updatePresetStatus(){
-  const active=detectActivePreset();
-  S.activePreset=active;
   const statusEl=document.getElementById('preset-status');
   if(!statusEl)return;
-  if(active&&S.presets[active]){
-    statusEl.textContent='Loaded: '+S.presets[active].name;
+  // Use lastLoadedKey as source of truth; fall back to detection only when null
+  const key=S.lastLoadedKey&&S.presets[S.lastLoadedKey]?S.lastLoadedKey:null;
+  S.activePreset=key;
+  if(key){
+    statusEl.textContent='Loaded: '+S.presets[key].name;
     statusEl.style.color='var(--ok)';
   } else {
     const hasAny=S.activities.some(a=>a.slot!=='off');
@@ -689,11 +692,12 @@ function updatePresetStatus(){
 function applyPreset(key){
   S.activities.forEach(a=>{a.slot='off';});
   S.morningOrder=[];S.afternoonOrder=[];S.afterdinnerOrder=[];
-  if(key==='clear'){save();renderAll();return;}
+  if(key==='clear'){S.lastLoadedKey=null;save();renderAll();return;}
   const p=S.presets[key];if(!p)return;
   (p.morning||[]).forEach(id=>{const a=S.activities.find(x=>x.id===id);if(a){a.slot='morning';S.morningOrder.push(id);}});
   (p.afternoon||[]).forEach(id=>{const a=S.activities.find(x=>x.id===id);if(a){a.slot='afternoon';S.afternoonOrder.push(id);}});
   (p.afterdinner||[]).forEach(id=>{const a=S.activities.find(x=>x.id===id);if(a){a.slot='afterdinner';S.afterdinnerOrder.push(id);}});
+  S.lastLoadedKey=key;
   save();renderAll();updatePresetStatus();
 }
 
@@ -745,8 +749,8 @@ function renderPresets(){
   clrBtn.className='pbtn clear-btn';clrBtn.textContent='Clear';
   clrBtn.addEventListener('click',()=>applyPreset('clear'));
   loadRow.appendChild(clrBtn);
-  // Compute active once using current slot state
-  const activeKey=detectActivePreset();
+  // Use lastLoadedKey as source of truth for button highlight
+  const activeKey=S.lastLoadedKey&&S.presets[S.lastLoadedKey]?S.lastLoadedKey:null;
   keys.slice(0,3).forEach(key=>{
     const p=S.presets[key];
     const btn=document.createElement('button');
