@@ -49,7 +49,8 @@
   .tab:last-child{border-right:none;}
   .tab.active{background:var(--bg-secondary);color:var(--text-primary);font-weight:500;}
   /* Preset row */
-  .preset-row{display:grid;grid-template-columns:1fr 56px 32px;gap:5px;align-items:center;}
+  .preset-row{display:grid;grid-template-columns:16px 24px 1fr 52px 30px;gap:5px;align-items:center;padding:6px 8px;background:var(--bg-primary);border:.5px solid var(--border-light);border-radius:var(--radius);margin-bottom:3px;}
+  .preset-load-btn{background:none;border:none;cursor:pointer;color:var(--ok);font-size:calc(var(--fs)*1.0714);padding:0;display:flex;align-items:center;justify-content:center;}
   .preset-name-inp{font-size:calc(var(--fs) * 0.9286);padding:6px 8px;border:.5px solid var(--border-mid);border-radius:var(--radius);background:var(--bg-secondary);color:var(--text-primary);width:100%;font-family:var(--font);}
   .preset-name-inp:focus{outline:none;border-color:var(--border-mid);}
   .preset-save-btn{font-size:calc(var(--fs) * 0.7857);padding:6px 4px;border:.5px solid var(--border-mid);border-radius:var(--radius);background:var(--bg-secondary);color:var(--text-primary);cursor:pointer;font-family:var(--font);text-align:center;white-space:nowrap;}
@@ -282,7 +283,7 @@
     </div>
   </div>
 
-  <div class="version">v3.5</div>
+  <div class="version">v3.6</div>
 </div>
 
 <!-- IMPORT MODAL -->
@@ -694,17 +695,18 @@ function showConfirm(msg){
   el.textContent=msg;setTimeout(()=>{el.textContent='';},2500);
 }
 
+let pDragKey=null;
 function renderPresets(){
-  // Load buttons row
+  const keys=presetKeys();
+
+  // Load buttons: Clear + top 3 presets
   const loadRow=document.getElementById('preset-load-row');
   loadRow.innerHTML='';
-  // Clear button always first
   const clrBtn=document.createElement('button');
   clrBtn.className='pbtn clear-btn';clrBtn.textContent='Clear';
   clrBtn.addEventListener('click',()=>applyPreset('clear'));
   loadRow.appendChild(clrBtn);
-  // One button per preset
-  presetKeys().forEach(key=>{
+  keys.slice(0,3).forEach(key=>{
     const p=S.presets[key];
     const btn=document.createElement('button');
     btn.className='pbtn';btn.textContent=p.name;
@@ -712,25 +714,55 @@ function renderPresets(){
     loadRow.appendChild(btn);
   });
 
-  // Manage list
+  // Manage list: all presets, draggable, with tap-to-load, rename, update, delete
   const list=document.getElementById('preset-manage-list');
   list.innerHTML='';
-  if(presetKeys().length===0){
+  if(keys.length===0){
     list.innerHTML='<div class="empty">No presets yet — configure a plan and save it above.</div>';
     return;
   }
-  presetKeys().forEach(key=>{
+  // hint label
+  const hint=document.createElement('div');
+  hint.style.cssText='font-size:calc(var(--fs)*0.7143);color:var(--text-tertiary);padding:0 2px 4px;';
+  hint.textContent='Top 3 appear as quick buttons. Drag to reorder.';
+  list.appendChild(hint);
+
+  keys.forEach((key,idx)=>{
     const p=S.presets[key];
     const row=document.createElement('div');
     row.className='preset-row';
+    row.draggable=true;
+    row.dataset.key=key;
+    // highlight top 3
+    if(idx<3)row.style.borderLeft='2px solid var(--ok)';
+
+    // drag handle
+    const dh=document.createElement('span');
+    dh.className='drag-handle';dh.style.fontSize='13px';
+    dh.innerHTML='<i class="ti ti-grip-vertical"></i>';
+    row.appendChild(dh);
+
+    // load button (tap to apply)
+    const lb=document.createElement('button');
+    lb.className='preset-load-btn';lb.title='Load preset';
+    lb.innerHTML='<i class="ti ti-player-play"></i>';
+    lb.addEventListener('click',()=>{applyPreset(key);showConfirm('"'+p.name+'" loaded.');});
+    row.appendChild(lb);
+
     // name input
     const ni=document.createElement('input');
     ni.type='text';ni.className='preset-name-inp';ni.value=p.name;
+    ni.addEventListener('mousedown',e=>e.stopPropagation());
+    ni.addEventListener('touchstart',e=>e.stopPropagation());
     ni.addEventListener('change',()=>renamePreset(key,ni.value));
-    // overwrite button
+    row.appendChild(ni);
+
+    // update button
     const sb=document.createElement('button');
     sb.className='preset-save-btn';sb.textContent='Update';
     sb.addEventListener('click',()=>saveOverPreset(key));
+    row.appendChild(sb);
+
     // delete button
     const db=document.createElement('button');
     db.className='del-btn';db.title='Delete preset';
@@ -738,7 +770,37 @@ function renderPresets(){
     db.addEventListener('click',()=>{
       if(confirm('Delete "'+p.name+'" preset?'))deletePreset(key);
     });
-    row.appendChild(ni);row.appendChild(sb);row.appendChild(db);
+    row.appendChild(db);
+
+    // drag events
+    row.addEventListener('dragstart',e=>{
+      pDragKey=key;
+      e.currentTarget.classList.add('edragging');
+      e.dataTransfer.effectAllowed='move';
+    });
+    row.addEventListener('dragover',e=>{
+      e.preventDefault();
+      list.querySelectorAll('.preset-row').forEach(r=>r.classList.remove('drag-over'));
+      e.currentTarget.classList.add('drag-over');
+    });
+    row.addEventListener('dragend',()=>{
+      list.querySelectorAll('.preset-row').forEach(r=>{r.classList.remove('edragging');r.classList.remove('drag-over');});
+    });
+    row.addEventListener('drop',e=>{
+      e.preventDefault();
+      const tKey=e.currentTarget.dataset.key;
+      if(!pDragKey||pDragKey===tKey)return;
+      // reorder S.presets by rebuilding object
+      const entries=Object.entries(S.presets);
+      const fi=entries.findIndex(([k])=>k===pDragKey);
+      const ti=entries.findIndex(([k])=>k===tKey);
+      if(fi===-1||ti===-1)return;
+      const [moved]=entries.splice(fi,1);
+      entries.splice(ti,0,moved);
+      S.presets=Object.fromEntries(entries);
+      save();renderPresets();
+    });
+
     list.appendChild(row);
   });
 }
