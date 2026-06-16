@@ -58,12 +58,6 @@
   .pbtn{flex:1;padding:7px 2px;font-size:calc(var(--fs) * 0.8571);border:.5px solid var(--border-mid);border-radius:var(--radius);background:var(--bg-primary);color:var(--text-secondary);cursor:pointer;font-family:var(--font);}
   .pbtn:active{transform:scale(.97);}
   .pbtn.active-preset{background:var(--ok);color:var(--bg-secondary);border-color:var(--ok);font-weight:600;}
-  /* Save preset */
-  .save-preset-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;padding:7px 9px;background:var(--bg-primary);border-radius:var(--radius);border:.5px solid var(--border-light);}
-  .save-preset-label{font-size:calc(var(--fs) * 0.8571);color:var(--text-secondary);flex:1;}
-  .save-preset-select{font-size:calc(var(--fs) * 0.8571);padding:4px 6px;border:.5px solid var(--border-mid);border-radius:var(--radius);background:var(--bg-secondary);color:var(--text-primary);font-family:var(--font);}
-  .save-preset-btn{font-size:calc(var(--fs) * 0.8571);padding:5px 9px;border:.5px solid var(--border-mid);border-radius:var(--radius);background:var(--bg-secondary);color:var(--text-primary);cursor:pointer;white-space:nowrap;font-family:var(--font);}
-  .save-preset-btn:active{transform:scale(.97);}
   .save-confirm{font-size:calc(var(--fs) * 0.7857);color:var(--success);min-height:14px;padding:0 2px;margin-bottom:3px;}
   /* Block headers */
   .blk-hdr{display:flex;justify-content:space-between;align-items:baseline;margin:10px 0 4px;}
@@ -88,7 +82,6 @@
   /* Schedule view */
   .sched-panel{display:none;}
   .sched-panel.open{display:block;}
-  .sched-block{margin-bottom:4px;}
   .sched-anchor{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg-tertiary);border-radius:var(--radius);margin:10px 0 4px;}
   .sched-anchor-time{font-size:calc(var(--fs) * 0.9286);font-weight:600;color:var(--text-primary);min-width:70px;flex-shrink:0;}
   .sched-anchor-label{font-size:calc(var(--fs) * 0.8571);color:var(--text-secondary);}
@@ -100,10 +93,6 @@
   /* Edit view */
   .edit-panel{display:none;}
   .edit-panel.open{display:block;}
-  .buf-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
-  .buf-row label{font-size:calc(var(--fs) * 0.9286);color:var(--text-secondary);flex:1;}
-  .buf-inp{width:52px;font-size:calc(var(--fs) * 0.9286);border:.5px solid var(--border-mid);border-radius:var(--radius);padding:5px 6px;text-align:center;background:var(--bg-primary);color:var(--text-primary);font-family:var(--font);}
-  .buf-inp::-webkit-inner-spin-button{-webkit-appearance:none;}
   .elist{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;}
   .erow{display:grid;grid-template-columns:18px 1fr 40px 44px 32px;gap:5px;align-items:center;padding:7px 9px;background:var(--bg-primary);border:.5px solid var(--border-light);border-radius:var(--radius);}
   .erow.drag-over{border-color:var(--border-mid);background:var(--bg-tertiary);}
@@ -285,7 +274,7 @@
     </div>
   </div>
 
-  <div class="version">v4.1</div>
+  <div class="version">v4.3</div>
 </div>
 
 <!-- IMPORT MODAL -->
@@ -343,7 +332,6 @@ function defState(){return{
 
   morningOrder:[],afternoonOrder:[],afterdinnerOrder:[],
   fmt:12,
-  activePreset:null,
   lastLoadedKey:null,
   presets:JSON.parse(JSON.stringify(DP))
 };}
@@ -430,8 +418,11 @@ function calc(){
   return{
     wakeMins,stopMins,workMins,bedTonight,lightsOut,
     mTotal,aTotal,dTotal,
-
-
+    // crossing flags: true when the value falls outside the same calendar day
+    wakeCrosses:wakeMins<0,
+    bedTonightCrosses:bedTonight<0,
+    stopCrosses:stopMins<S.workStart,
+    lightsOutCrosses:lightsOut>=1440
   };
 }
 
@@ -495,11 +486,6 @@ document.addEventListener('keydown',function(e){
   if(e.key==='Escape'&&activeEditKey)closeCardEdit();
 });
 
-// ── Render time inputs (kept for import restore) ─────────────────────────────
-function renderTimeInputs(){
-  // no-op: inputs are now inline in cards
-}
-
 // ── Render cards (chronological 8-card grid) ────────────────────────────────
 function renderSummary(){
   const c=calc();
@@ -520,15 +506,15 @@ function renderSummary(){
     grid.appendChild(d);
   }
 
-  // Chronological order
+  // Chronological order. warn=true flags a time that crosses midnight.
   outCard('Bed (night before)', m2disp(c.bedTonight), 'latest', null);
   inCard('Sleep',               S.sleepHrs+'h',       null, 'sleepHrs');
-  outCard('Wake up by',         m2disp(c.wakeMins),   durLabel(c.mTotal)+' of activities', null);
+  outCard('Wake up by',         m2disp(c.wakeMins),   c.wakeCrosses?'prev day · over-scheduled':durLabel(c.mTotal)+' of activities', c.wakeCrosses?true:null);
   inCard('Work starts',         m2disp(S.workStart),  null, 'workStart');
-  outCard('Work available',     durLabel(c.workMins),  m2disp(S.workStart)+'–'+m2disp(c.stopMins), null);
-  outCard('Stop work by',       m2disp(c.stopMins),   durLabel(c.aTotal)+' of activities', null);
+  outCard('Work available',     durLabel(c.workMins),  m2disp(S.workStart)+'–'+m2disp(c.stopMins), c.stopCrosses?true:null);
+  outCard('Stop work by',       m2disp(c.stopMins),   c.stopCrosses?'before work · over-scheduled':durLabel(c.aTotal)+' of activities', c.stopCrosses?true:null);
   inCard('Dinner',              m2disp(S.dinner),     null, 'dinner');
-  outCard('Bed (night after)',  m2disp(c.lightsOut),  'earliest', null);
+  outCard('Bed (night after)',  m2disp(c.lightsOut),  c.lightsOutCrosses?'next day':'earliest', c.lightsOutCrosses?true:null);
 }
 
 // ── Render plan view ────────────────────────────────────────────────────────
@@ -611,7 +597,9 @@ function renderSchedule(){
 
   function anchor(time,label){
     const d=document.createElement('div');d.className='sched-anchor';
-    d.innerHTML='<span class="sched-anchor-time">'+m2disp(time)+'</span><span class="sched-anchor-label">'+label+'</span>';
+    const ts=document.createElement('span');ts.className='sched-anchor-time';ts.textContent=m2disp(time);
+    const ls=document.createElement('span');ls.className='sched-anchor-label';ls.textContent=label;
+    d.appendChild(ts);d.appendChild(ls);
     el.appendChild(d);
   }
   function schedRows(acts,startTime){
@@ -626,7 +614,10 @@ function renderSchedule(){
       const prepMins=a.prep||0;
       const durMins=a.dur||0;
       const subLabel=prepMins>0?(prepMins+'m prep + '+durMins+'m'):(durMins+'m');
-      row.innerHTML='<span class="sched-time">'+m2disp(t)+'</span><span class="sched-name">'+a.name+'</span><span class="sched-dur">'+subLabel+'</span>';
+      const timeSpan=document.createElement('span');timeSpan.className='sched-time';timeSpan.textContent=m2disp(t);
+      const nameSpan=document.createElement('span');nameSpan.className='sched-name';nameSpan.textContent=a.name;
+      const durSpan=document.createElement('span');durSpan.className='sched-dur';durSpan.textContent=subLabel;
+      row.appendChild(timeSpan);row.appendChild(nameSpan);row.appendChild(durSpan);
       el.appendChild(row);
       t+=tot;
     });
@@ -653,33 +644,11 @@ function renderSchedule(){
 // ── Presets ───────────────────────────────────────────────────────────────────
 function presetKeys(){return Object.keys(S.presets);}
 
-function planMatchesPreset(key){
-  const p=S.presets[key];if(!p)return false;
-  const{morning,afternoon,afterdinner}=slotted();
-  const mIds=morning.map(a=>a.id);
-  const aIds=afternoon.map(a=>a.id);
-  const dIds=afterdinner.map(a=>a.id);
-  const pm=p.morning||[],pa=p.afternoon||[],pd=p.afterdinner||[];
-  if(mIds.length!==pm.length||aIds.length!==pa.length||dIds.length!==pd.length)return false;
-  return mIds.every((id,i)=>id===pm[i])&&
-         aIds.every((id,i)=>id===pa[i])&&
-         dIds.every((id,i)=>id===pd[i]);
-}
-
-function detectActivePreset(){
-  // returns key of matching preset or null
-  for(const key of presetKeys()){
-    if(planMatchesPreset(key))return key;
-  }
-  return null;
-}
-
 function updatePresetStatus(){
   const statusEl=document.getElementById('preset-status');
   if(!statusEl)return;
   // Use lastLoadedKey as source of truth; fall back to detection only when null
   const key=S.lastLoadedKey&&S.presets[S.lastLoadedKey]?S.lastLoadedKey:null;
-  S.activePreset=key;
   if(key){
     statusEl.textContent='Loaded: '+S.presets[key].name;
     statusEl.style.color='var(--ok)';
@@ -995,16 +964,78 @@ document.getElementById('import-file').addEventListener('change',function(){
   };
   reader.readAsText(file);
 });
+function sanitizeState(raw){
+  // Returns a fully valid state object, backfilling/repairing as needed.
+  // Throws an Error if the data is too broken to use.
+  if(!raw||typeof raw!=='object')throw new Error('Not an object');
+  if(!Array.isArray(raw.activities))throw new Error('Missing activities');
+
+  const out={};
+
+  // Activities: each needs id, name, numeric dur>0, numeric prep>=0, valid slot
+  const validSlots=['morning','afternoon','afterdinner','off'];
+  out.activities=raw.activities.filter(a=>a&&typeof a==='object'&&a.id&&typeof a.name==='string').map(a=>({
+    id:String(a.id),
+    name:String(a.name),
+    dur:(Number.isFinite(a.dur)&&a.dur>0)?Math.round(a.dur):15,
+    prep:(Number.isFinite(a.prep)&&a.prep>=0)?Math.round(a.prep):0,
+    slot:validSlots.includes(a.slot)?a.slot:'off'
+  }));
+  if(out.activities.length===0)throw new Error('No valid activities');
+
+  const ids=out.activities.map(a=>a.id);
+  const cleanOrder=arr=>Array.isArray(arr)?arr.filter(id=>ids.includes(id)):[];
+
+  // Numeric anchors with sane fallbacks and clamping to a valid day
+  const clampMin=(v,def)=>(Number.isFinite(v)&&v>=0&&v<1440)?Math.round(v):def;
+  out.workStart=clampMin(raw.workStart,540);
+  out.dinner=clampMin(raw.dinner,1110);
+  out.sleepHrs=(Number.isFinite(raw.sleepHrs)&&raw.sleepHrs>=4&&raw.sleepHrs<=12)?raw.sleepHrs:8;
+
+  out.morningOrder=cleanOrder(raw.morningOrder);
+  out.afternoonOrder=cleanOrder(raw.afternoonOrder);
+  out.afterdinnerOrder=cleanOrder(raw.afterdinnerOrder);
+
+  out.fmt=(raw.fmt===24)?24:12;
+  out.fontSize=(Number.isFinite(raw.fontSize)&&raw.fontSize>=FS_MIN&&raw.fontSize<=FS_MAX)?raw.fontSize:FS_DEFAULT;
+  out.lastView=['plan','sched','edit'].includes(raw.lastView)?raw.lastView:'plan';
+  out.lastLoadedKey=(raw.lastLoadedKey&&typeof raw.lastLoadedKey==='string')?raw.lastLoadedKey:null;
+
+  // Presets: validate each, backfill name + arrays; fall back to defaults if none valid
+  out.presets={};
+  if(raw.presets&&typeof raw.presets==='object'){
+    Object.entries(raw.presets).forEach(([k,p])=>{
+      if(!p||typeof p!=='object')return;
+      out.presets[k]={
+        name:(typeof p.name==='string'&&p.name.trim())?p.name:k,
+        morning:cleanOrder(p.morning),
+        afternoon:cleanOrder(p.afternoon),
+        afterdinner:cleanOrder(p.afterdinner)
+      };
+    });
+  }
+  if(Object.keys(out.presets).length===0)out.presets=JSON.parse(JSON.stringify(DP));
+
+  // Drop lastLoadedKey if it no longer points to a real preset
+  if(out.lastLoadedKey&&!out.presets[out.lastLoadedKey])out.lastLoadedKey=null;
+
+  return out;
+}
+
 function doImport(){
   if(!importFileData)return;
-  S=importFileData;
-  if(!S.presets)S.presets=JSON.parse(JSON.stringify(DP));
-  S.activities.forEach(a=>{if(a.prep===undefined)a.prep=0;});
-  if(!S.afternoonOrder)S.afternoonOrder=[];
-  if(!S.afterdinnerOrder)S.afterdinnerOrder=[];
+  let clean;
+  try{
+    clean=sanitizeState(importFileData);
+  } catch(err){
+    document.getElementById('import-err').textContent='File is missing required data and cannot be imported.';
+    return;
+  }
+  S=clean;
   save();closeModal('import-modal');
   applyFs(S.fontSize||FS_DEFAULT);
-  updateFmtButtons();renderTimeInputs();renderAll();
+  updateFmtButtons();renderAll();
+  showView(S.lastView||'plan');
 }
 function closeModal(id){document.getElementById(id).className='modal-overlay';}
 document.querySelectorAll('.modal-overlay').forEach(el=>{
@@ -1016,7 +1047,7 @@ function updateFmtButtons(){
   ['fmt12-plan','fmt12-sched','fmt12-edit'].forEach(id=>{const el=document.getElementById(id);if(el)el.className='fmt-btn'+(S.fmt===12?' active':'');});
   ['fmt24-plan','fmt24-sched','fmt24-edit'].forEach(id=>{const el=document.getElementById(id);if(el)el.className='fmt-btn'+(S.fmt===24?' active':'');});
 }
-function setFmt(f){S.fmt=f;updateFmtButtons();save();renderTimeInputs();renderAll();}
+function setFmt(f){S.fmt=f;updateFmtButtons();save();renderAll();}
 
 // ── View switching ────────────────────────────────────────────────────────────
 function showView(v){
@@ -1035,8 +1066,6 @@ function showView(v){
 function renderAll(){
   renderSummary();
   renderPlan();
-  // renderPresets internally calls detectActivePreset for button highlighting
-  // updatePresetStatus must run after renderPresets so status label is accurate
   renderPresets();
   updatePresetStatus();
   if(document.getElementById('view-sched').classList.contains('open'))renderSchedule();
@@ -1059,7 +1088,6 @@ function adjustFs(delta){
 // ── Init ──────────────────────────────────────────────────────────────────────
 applyFs(S.fontSize||FS_DEFAULT);
 updateFmtButtons();
-renderTimeInputs();
 renderAll();
 showView(S.lastView||'plan');
 </script>
