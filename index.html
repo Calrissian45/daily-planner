@@ -57,6 +57,7 @@
   .preset-save-btn:active{transform:scale(.97);}
   .pbtn{flex:1;padding:7px 2px;font-size:calc(var(--fs) * 0.8571);border:.5px solid var(--border-mid);border-radius:var(--radius);background:var(--bg-primary);color:var(--text-secondary);cursor:pointer;font-family:var(--font);}
   .pbtn:active{transform:scale(.97);}
+  .pbtn.active-preset{background:var(--ok);color:var(--bg-secondary);border-color:var(--ok);font-weight:600;}
   /* Save preset */
   .save-preset-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;padding:7px 9px;background:var(--bg-primary);border-radius:var(--radius);border:.5px solid var(--border-light);}
   .save-preset-label{font-size:calc(var(--fs) * 0.8571);color:var(--text-secondary);flex:1;}
@@ -284,7 +285,7 @@
     </div>
   </div>
 
-  <div class="version">v3.7</div>
+  <div class="version">v3.9</div>
 </div>
 
 <!-- IMPORT MODAL -->
@@ -655,9 +656,11 @@ function planMatchesPreset(key){
   const mIds=morning.map(a=>a.id);
   const aIds=afternoon.map(a=>a.id);
   const dIds=afterdinner.map(a=>a.id);
-  return JSON.stringify(mIds)===JSON.stringify(p.morning||[])&&
-         JSON.stringify(aIds)===JSON.stringify(p.afternoon||[])&&
-         JSON.stringify(dIds)===JSON.stringify(p.afterdinner||[]);
+  const pm=p.morning||[],pa=p.afternoon||[],pd=p.afterdinner||[];
+  if(mIds.length!==pm.length||aIds.length!==pa.length||dIds.length!==pd.length)return false;
+  return mIds.every((id,i)=>id===pm[i])&&
+         aIds.every((id,i)=>id===pa[i])&&
+         dIds.every((id,i)=>id===pd[i]);
 }
 
 function detectActivePreset(){
@@ -672,16 +675,14 @@ function updatePresetStatus(){
   const active=detectActivePreset();
   S.activePreset=active;
   const statusEl=document.getElementById('preset-status');
-  if(statusEl){
-    if(active){
-      statusEl.textContent='Loaded: '+S.presets[active].name;
-      statusEl.style.color='var(--ok)';
-    } else {
-      // check if all off (clear state)
-      const hasAny=S.activities.some(a=>a.slot!=='off');
-      statusEl.textContent=hasAny?'Custom (unsaved)':'No activities scheduled';
-      statusEl.style.color='var(--text-tertiary)';
-    }
+  if(!statusEl)return;
+  if(active&&S.presets[active]){
+    statusEl.textContent='Loaded: '+S.presets[active].name;
+    statusEl.style.color='var(--ok)';
+  } else {
+    const hasAny=S.activities.some(a=>a.slot!=='off');
+    statusEl.textContent=hasAny?'Custom (unsaved)':'No activities scheduled';
+    statusEl.style.color='var(--text-tertiary)';
   }
 }
 
@@ -706,6 +707,7 @@ function addPreset(){
   nameEl.value='';
   save();renderPresets();
   showConfirm('"'+name+'" saved.');
+  updatePresetStatus();
 }
 
 function saveOverPreset(key){
@@ -743,11 +745,12 @@ function renderPresets(){
   clrBtn.className='pbtn clear-btn';clrBtn.textContent='Clear';
   clrBtn.addEventListener('click',()=>applyPreset('clear'));
   loadRow.appendChild(clrBtn);
-  const active=detectActivePreset();
+  // Compute active once using current slot state
+  const activeKey=detectActivePreset();
   keys.slice(0,3).forEach(key=>{
     const p=S.presets[key];
     const btn=document.createElement('button');
-    btn.className='pbtn'+(active===key?' active-preset':'');
+    btn.className='pbtn'+(activeKey===key?' active-preset':'');
     btn.textContent=p.name;
     btn.addEventListener('click',()=>applyPreset(key));
     loadRow.appendChild(btn);
@@ -785,7 +788,7 @@ function renderPresets(){
     const lb=document.createElement('button');
     lb.className='preset-load-btn';lb.title='Load preset';
     lb.innerHTML='<i class="ti ti-player-play"></i>';
-    lb.addEventListener('click',()=>{applyPreset(key);showConfirm('"'+p.name+'" loaded.');});
+    lb.addEventListener('click',()=>applyPreset(key));
     row.appendChild(lb);
 
     // name input
@@ -1027,6 +1030,8 @@ function showView(v){
 function renderAll(){
   renderSummary();
   renderPlan();
+  // renderPresets internally calls detectActivePreset for button highlighting
+  // updatePresetStatus must run after renderPresets so status label is accurate
   renderPresets();
   updatePresetStatus();
   if(document.getElementById('view-sched').classList.contains('open'))renderSchedule();
