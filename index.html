@@ -169,7 +169,8 @@
 
   <!-- PLAN VIEW -->
   <div id="view-plan">
-    <div id="preset-load-row" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;"></div>
+    <div id="preset-load-row" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:4px;"></div>
+    <div class="preset-status" id="preset-status"></div>
     <div class="save-confirm" id="save-confirm"></div>
 
     <div class="blk-hdr"><span class="blk-title">Morning</span><span class="blk-dur" id="m-dur"></span></div>
@@ -283,7 +284,7 @@
     </div>
   </div>
 
-  <div class="version">v3.6</div>
+  <div class="version">v3.7</div>
 </div>
 
 <!-- IMPORT MODAL -->
@@ -341,6 +342,7 @@ function defState(){return{
 
   morningOrder:[],afternoonOrder:[],afterdinnerOrder:[],
   fmt:12,
+  activePreset:null,
   presets:JSON.parse(JSON.stringify(DP))
 };}
 let S=loadState()||defState();
@@ -570,7 +572,6 @@ function renderPlanBlock(listId,acts,slot){
 
 function setSlot(id,newSlot){
   const act=S.activities.find(a=>a.id===id);if(!act)return;
-  // remove from all orders first
   S.morningOrder=S.morningOrder.filter(x=>x!==id);
   S.afternoonOrder=S.afternoonOrder.filter(x=>x!==id);
   S.afterdinnerOrder=S.afterdinnerOrder.filter(x=>x!==id);
@@ -578,7 +579,7 @@ function setSlot(id,newSlot){
   if(newSlot==='morning')S.morningOrder.push(id);
   if(newSlot==='afternoon')S.afternoonOrder.push(id);
   if(newSlot==='afterdinner')S.afterdinnerOrder.push(id);
-  save();renderAll();
+  save();renderAll();updatePresetStatus();
 }
 
 // ── Drag and drop ───────────────────────────────────────────────────────────
@@ -594,7 +595,7 @@ function onDrop(e){
   const ord=S[key],fi=ord.indexOf(dragId),ti=ord.indexOf(tId);
   if(fi===-1||ti===-1)return;
   ord.splice(fi,1);ord.splice(ti,0,dragId);
-  save();renderAll();
+  save();renderAll();updatePresetStatus();
 }
 
 // ── Render schedule view ─────────────────────────────────────────────────────
@@ -648,6 +649,42 @@ function renderSchedule(){
 // ── Presets ───────────────────────────────────────────────────────────────────
 function presetKeys(){return Object.keys(S.presets);}
 
+function planMatchesPreset(key){
+  const p=S.presets[key];if(!p)return false;
+  const{morning,afternoon,afterdinner}=slotted();
+  const mIds=morning.map(a=>a.id);
+  const aIds=afternoon.map(a=>a.id);
+  const dIds=afterdinner.map(a=>a.id);
+  return JSON.stringify(mIds)===JSON.stringify(p.morning||[])&&
+         JSON.stringify(aIds)===JSON.stringify(p.afternoon||[])&&
+         JSON.stringify(dIds)===JSON.stringify(p.afterdinner||[]);
+}
+
+function detectActivePreset(){
+  // returns key of matching preset or null
+  for(const key of presetKeys()){
+    if(planMatchesPreset(key))return key;
+  }
+  return null;
+}
+
+function updatePresetStatus(){
+  const active=detectActivePreset();
+  S.activePreset=active;
+  const statusEl=document.getElementById('preset-status');
+  if(statusEl){
+    if(active){
+      statusEl.textContent='Loaded: '+S.presets[active].name;
+      statusEl.style.color='var(--ok)';
+    } else {
+      // check if all off (clear state)
+      const hasAny=S.activities.some(a=>a.slot!=='off');
+      statusEl.textContent=hasAny?'Custom (unsaved)':'No activities scheduled';
+      statusEl.style.color='var(--text-tertiary)';
+    }
+  }
+}
+
 function applyPreset(key){
   S.activities.forEach(a=>{a.slot='off';});
   S.morningOrder=[];S.afternoonOrder=[];S.afterdinnerOrder=[];
@@ -656,7 +693,7 @@ function applyPreset(key){
   (p.morning||[]).forEach(id=>{const a=S.activities.find(x=>x.id===id);if(a){a.slot='morning';S.morningOrder.push(id);}});
   (p.afternoon||[]).forEach(id=>{const a=S.activities.find(x=>x.id===id);if(a){a.slot='afternoon';S.afternoonOrder.push(id);}});
   (p.afterdinner||[]).forEach(id=>{const a=S.activities.find(x=>x.id===id);if(a){a.slot='afterdinner';S.afterdinnerOrder.push(id);}});
-  save();renderAll();
+  save();renderAll();updatePresetStatus();
 }
 
 function addPreset(){
@@ -706,10 +743,12 @@ function renderPresets(){
   clrBtn.className='pbtn clear-btn';clrBtn.textContent='Clear';
   clrBtn.addEventListener('click',()=>applyPreset('clear'));
   loadRow.appendChild(clrBtn);
+  const active=detectActivePreset();
   keys.slice(0,3).forEach(key=>{
     const p=S.presets[key];
     const btn=document.createElement('button');
-    btn.className='pbtn';btn.textContent=p.name;
+    btn.className='pbtn'+(active===key?' active-preset':'');
+    btn.textContent=p.name;
     btn.addEventListener('click',()=>applyPreset(key));
     loadRow.appendChild(btn);
   });
@@ -989,6 +1028,7 @@ function renderAll(){
   renderSummary();
   renderPlan();
   renderPresets();
+  updatePresetStatus();
   if(document.getElementById('view-sched').classList.contains('open'))renderSchedule();
 }
 
