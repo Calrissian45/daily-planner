@@ -274,7 +274,7 @@
     </div>
   </div>
 
-  <div class="version">v4.3</div>
+  <div class="version">v4.4</div>
 </div>
 
 <!-- IMPORT MODAL -->
@@ -360,26 +360,7 @@ function m2disp(m){
   const ap=h<12?'AM':'PM',h12=h%12||12;
   return h12+':'+String(mn).padStart(2,'0')+'\u202f'+ap;
 }
-function parse12(s){
-  s=s.trim().toUpperCase();
-  const m=s.match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?$/);
-  if(!m)return null;
-  let h=parseInt(m[1]),mn=parseInt(m[2]||'0'),ap=m[3];
-  if(h<0||h>12||mn<0||mn>59)return null;
-  if(ap==='PM'&&h!==12)h+=12;
-  if(ap==='AM'&&h===12)h=0;
-  if(!ap&&h>23)return null;
-  return h*60+mn;
-}
-function parse24(s){
-  const m=s.trim().match(/^(\d{1,2}):(\d{2})$/);
-  if(!m)return null;
-  const h=parseInt(m[1]),mn=parseInt(m[2]);
-  if(h>23||mn>59)return null;
-  return h*60+mn;
-}
-function parseTime(s){return S.fmt===12?parse12(s):parse24(s);}
-function ph(){return S.fmt===12?'e.g. 9:00 AM':'HH:MM';}
+// Time text parsing removed — native <input type="time"> used instead
 function durLabel(m){
   m=Math.round(m);
   const h=Math.floor(m/60),mn=m%60;
@@ -428,6 +409,21 @@ function calc(){
 
 // ── Hidden input overlay for editing ────────────────────────────────────────
 let activeEditKey=null;
+// Convert internal minutes to HH:MM string for <input type="time">
+function minsToTimeInput(m){
+  m=((m%1440)+1440)%1440;
+  return String(Math.floor(m/60)).padStart(2,'0')+':'+String(Math.round(m%60)).padStart(2,'0');
+}
+// Parse HH:MM string from <input type="time"> back to minutes
+function timeInputToMins(s){
+  if(!s)return null;
+  const parts=s.split(':');
+  if(parts.length<2)return null;
+  const h=parseInt(parts[0]),m=parseInt(parts[1]);
+  if(!Number.isFinite(h)||!Number.isFinite(m))return null;
+  return h*60+m;
+}
+
 function openCardEdit(key){
   activeEditKey=key;
   let overlay=document.getElementById('card-edit-overlay');
@@ -440,14 +436,15 @@ function openCardEdit(key){
   }
   const isSleep=key==='sleepHrs';
   const label={workStart:'Work starts',dinner:'Dinner',sleepHrs:'Sleep (hours)'}[key];
-  const currentVal=isSleep?S.sleepHrs:m2disp(S[key]);
+  // Use native time picker for time fields; number input for sleep hours
+  const inputType=isSleep?'number':'time';
+  const currentVal=isSleep?S.sleepHrs:minsToTimeInput(S[key]);
+  const extraAttrs=isSleep?'min="4" max="12" step="0.5"':'';
   overlay.innerHTML=`
     <div style="background:var(--bg-primary);border-radius:var(--radius);padding:20px;width:100%;max-width:320px;">
       <div style="font-size:calc(var(--fs) * 0.8571);color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">${label}</div>
-      <input id="card-edit-inp" type="${isSleep?'number':'text'}"
-        value="${currentVal}"
-        ${isSleep?'min=4 max=12 step=0.5':'placeholder="'+ph()+'"'}
-        style="width:100%;padding:10px 12px;font-size:calc(var(--fs) * 1.1428);border:.5px solid var(--border-mid);border-radius:var(--radius);background:var(--bg-secondary);color:var(--text-primary);font-family:var(--font);margin-bottom:12px;"
+      <input id="card-edit-inp" type="${inputType}" value="${currentVal}" ${extraAttrs}
+        style="width:100%;padding:10px 12px;font-size:calc(var(--fs) * 1.1428);border:.5px solid var(--border-mid);border-radius:var(--radius);background:var(--bg-secondary);color:var(--text-primary);font-family:var(--font);margin-bottom:12px;color-scheme:dark;"
       >
       <div id="card-edit-err" style="font-size:calc(var(--fs)*0.7857);color:var(--warn);min-height:14px;margin-bottom:8px;"></div>
       <div style="display:flex;gap:8px;justify-content:flex-end;">
@@ -458,7 +455,7 @@ function openCardEdit(key){
   overlay.style.display='flex';
   setTimeout(()=>{
     const inp=document.getElementById('card-edit-inp');
-    if(inp){inp.focus();inp.select();}
+    if(inp)inp.focus();
   },50);
 }
 function saveCardEdit(){
@@ -470,8 +467,8 @@ function saveCardEdit(){
     if(!v||v<4||v>12){errEl.textContent='Enter a value between 4 and 12.';return;}
     S.sleepHrs=v;save();closeCardEdit();renderAll();
   } else {
-    const v=parseTime(inp.value);
-    if(v===null){errEl.textContent='Invalid time. Use: '+ph();return;}
+    const v=timeInputToMins(inp.value);
+    if(v===null){errEl.textContent='Please select a valid time.';return;}
     S[key]=v;save();closeCardEdit();renderAll();
   }
 }
