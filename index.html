@@ -285,7 +285,7 @@
     </div>
   </div>
 
-  <div class="version">v4.0</div>
+  <div class="version">v4.1</div>
 </div>
 
 <!-- IMPORT MODAL -->
@@ -581,6 +581,7 @@ function setSlot(id,newSlot){
   if(newSlot==='morning')S.morningOrder.push(id);
   if(newSlot==='afternoon')S.afternoonOrder.push(id);
   if(newSlot==='afterdinner')S.afterdinnerOrder.push(id);
+  S.lastLoadedKey=null;
   save();renderAll();updatePresetStatus();
 }
 
