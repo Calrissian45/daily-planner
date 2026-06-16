@@ -166,14 +166,6 @@
   <div id="view-plan">
     <div id="preset-load-row" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;"></div>
     <div class="save-confirm" id="save-confirm"></div>
-    <div class="divider"></div>
-    <div class="blk-hdr"><span class="blk-title">Manage presets</span></div>
-    <div id="preset-manage-list" style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;"></div>
-    <div class="add-row" style="grid-template-columns:1fr 80px;gap:6px;margin-bottom:6px;">
-      <input class="add-name" type="text" id="new-preset-name" placeholder="New preset name">
-      <button class="add-btn" onclick="addPreset()">Save plan</button>
-    </div>
-    <div class="divider"></div>
 
     <div class="blk-hdr"><span class="blk-title">Morning</span><span class="blk-dur" id="m-dur"></span></div>
     <div class="alist" id="morning-list"></div>
@@ -208,6 +200,14 @@
         <div style="display:flex;gap:6px;">
           <button class="io-btn" onclick="doDownload()">Export</button>
           <button class="io-btn" onclick="openImport()">Import</button>
+        </div>
+      </div>
+      <div class="settings-row" style="align-items:flex-start;flex-direction:column;gap:8px;">
+        <span class="settings-label">Manage presets</span>
+        <div id="preset-manage-list" style="display:flex;flex-direction:column;gap:4px;width:100%;"></div>
+        <div style="display:grid;grid-template-columns:1fr 80px;gap:6px;width:100%;">
+          <input class="add-name" type="text" id="new-preset-name" placeholder="New preset name">
+          <button class="add-btn" onclick="addPreset()">Save plan</button>
         </div>
       </div>
     </div>
@@ -278,7 +278,7 @@
     </div>
   </div>
 
-  <div class="version">v3.3</div>
+  <div class="version">v3.4</div>
 </div>
 
 <!-- IMPORT MODAL -->
