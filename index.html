@@ -164,22 +164,16 @@
 
   <!-- PLAN VIEW -->
   <div id="view-plan">
-    <div class="preset-row">
-      <button class="pbtn" onclick="applyPreset('weightlift')">Weightlift</button>
-      <button class="pbtn" onclick="applyPreset('cardio')">Cardio</button>
-      <button class="pbtn" onclick="applyPreset('rest')">Rest</button>
-      <button class="pbtn" onclick="applyPreset('clear')">Clear</button>
-    </div>
-    <div class="save-preset-row">
-      <span class="save-preset-label">Save current plan as</span>
-      <select class="save-preset-select" id="save-preset-select">
-        <option value="weightlift">Weightlift</option>
-        <option value="cardio">Cardio</option>
-        <option value="rest">Rest</option>
-      </select>
-      <button class="save-preset-btn" onclick="saveAsPreset()">Save</button>
-    </div>
+    <div id="preset-load-row" style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px;"></div>
     <div class="save-confirm" id="save-confirm"></div>
+    <div class="divider"></div>
+    <div class="blk-hdr"><span class="blk-title">Manage presets</span></div>
+    <div id="preset-manage-list" style="display:flex;flex-direction:column;gap:4px;margin-bottom:6px;"></div>
+    <div class="add-row" style="grid-template-columns:1fr 80px;gap:6px;margin-bottom:6px;">
+      <input class="add-name" type="text" id="new-preset-name" placeholder="New preset name">
+      <button class="add-btn" onclick="addPreset()">Save plan</button>
+    </div>
+    <div class="divider"></div>
 
     <div class="blk-hdr"><span class="blk-title">Morning</span><span class="blk-dur" id="m-dur"></span></div>
     <div class="alist" id="morning-list"></div>
@@ -284,7 +278,7 @@
     </div>
   </div>
 
-  <div class="version">v3.2</div>
+  <div class="version">v3.3</div>
 </div>
 
 <!-- IMPORT MODAL -->
@@ -327,21 +321,9 @@ const DA=[
 
 // ── Default presets ─────────────────────────────────────────────────────────
 const DP={
-  weightlift:{
-    morning:['wakeup','mornrout','warmup','exercise','cooldown','shower','breakfast','packlunch','commuteto'],
-    afternoon:['commutehm'],
-    afterdinner:['evenrout']
-  },
-  cardio:{
-    morning:['wakeup','mornrout','exercise','cooldown','shower','breakfast','packlunch','commuteto'],
-    afternoon:['commutehm','walk'],
-    afterdinner:['evenrout']
-  },
-  rest:{
-    morning:['wakeup','mornrout','breakfast','commuteto'],
-    afternoon:['commutehm','hobby','reading'],
-    afterdinner:['medpray','evenrout']
-  }
+  weightlift:{name:'Weightlift',morning:['wakeup','mornrout','warmup','exercise','cooldown','shower','breakfast','packlunch','commuteto'],afternoon:['commutehm'],afterdinner:['evenrout']},
+  cardio:{name:'Cardio',morning:['wakeup','mornrout','exercise','cooldown','shower','breakfast','packlunch','commuteto'],afternoon:['commutehm','walk'],afterdinner:['evenrout']},
+  rest:{name:'Rest',morning:['wakeup','mornrout','breakfast','commuteto'],afternoon:['commutehm','hobby','reading'],afterdinner:['medpray','evenrout']}
 };
 
 // ── State ───────────────────────────────────────────────────────────────────
@@ -360,6 +342,13 @@ let S=loadState()||defState();
 if(!S.presets)S.presets=JSON.parse(JSON.stringify(DP));
 if(!S.afternoonOrder)S.afternoonOrder=[];
 if(!S.afterdinnerOrder)S.afterdinnerOrder=[];
+// Migrate old presets that don't have a name field
+Object.keys(S.presets).forEach(k=>{
+  if(!S.presets[k].name){
+    const names={weightlift:'Weightlift',cardio:'Cardio',rest:'Rest'};
+    S.presets[k].name=names[k]||k;
+  }
+});
 // migrate old slot values
 S.activities.forEach(a=>{
   if(!['morning','afternoon','afterdinner','off'].includes(a.slot))a.slot='off';
@@ -651,26 +640,103 @@ function renderSchedule(){
   }
 }
 
-// ── Presets ──────────────────────────────────────────────────────────────────
-function applyPreset(name){
+// ── Presets ───────────────────────────────────────────────────────────────────
+function presetKeys(){return Object.keys(S.presets);}
+
+function applyPreset(key){
   S.activities.forEach(a=>{a.slot='off';});
   S.morningOrder=[];S.afternoonOrder=[];S.afterdinnerOrder=[];
-  if(name==='clear'){save();renderAll();return;}
-  const p=S.presets[name];if(!p)return;
+  if(key==='clear'){save();renderAll();return;}
+  const p=S.presets[key];if(!p)return;
   (p.morning||[]).forEach(id=>{const a=S.activities.find(x=>x.id===id);if(a){a.slot='morning';S.morningOrder.push(id);}});
   (p.afternoon||[]).forEach(id=>{const a=S.activities.find(x=>x.id===id);if(a){a.slot='afternoon';S.afternoonOrder.push(id);}});
   (p.afterdinner||[]).forEach(id=>{const a=S.activities.find(x=>x.id===id);if(a){a.slot='afterdinner';S.afterdinnerOrder.push(id);}});
   save();renderAll();
 }
 
-function saveAsPreset(){
-  const name=document.getElementById('save-preset-select').value;
+function addPreset(){
+  const nameEl=document.getElementById('new-preset-name');
+  const name=nameEl.value.trim();
+  if(!name)return;
+  const key='preset_'+Date.now();
   const{morning,afternoon,afterdinner}=slotted();
-  S.presets[name]={morning:morning.map(a=>a.id),afternoon:afternoon.map(a=>a.id),afterdinner:afterdinner.map(a=>a.id)};
-  save();
+  S.presets[key]={name,morning:morning.map(a=>a.id),afternoon:afternoon.map(a=>a.id),afterdinner:afterdinner.map(a=>a.id)};
+  nameEl.value='';
+  save();renderPresets();
+  showConfirm('"'+name+'" saved.');
+}
+
+function saveOverPreset(key){
+  const p=S.presets[key];if(!p)return;
+  const{morning,afternoon,afterdinner}=slotted();
+  S.presets[key]={...p,morning:morning.map(a=>a.id),afternoon:afternoon.map(a=>a.id),afterdinner:afterdinner.map(a=>a.id)};
+  save();renderPresets();
+  showConfirm('"'+p.name+'" updated.');
+}
+
+function renamePreset(key,newName){
+  if(!newName.trim()||!S.presets[key])return;
+  S.presets[key].name=newName.trim();
+  save();renderPresets();
+}
+
+function deletePreset(key){
+  delete S.presets[key];
+  save();renderPresets();
+}
+
+function showConfirm(msg){
   const el=document.getElementById('save-confirm');
-  el.textContent={weightlift:'Weightlift',cardio:'Cardio',rest:'Rest'}[name]+' preset saved.';
-  setTimeout(()=>{el.textContent='';},2500);
+  el.textContent=msg;setTimeout(()=>{el.textContent='';},2500);
+}
+
+function renderPresets(){
+  // Load buttons row
+  const loadRow=document.getElementById('preset-load-row');
+  loadRow.innerHTML='';
+  // Clear button always first
+  const clrBtn=document.createElement('button');
+  clrBtn.className='pbtn clear-btn';clrBtn.textContent='Clear';
+  clrBtn.addEventListener('click',()=>applyPreset('clear'));
+  loadRow.appendChild(clrBtn);
+  // One button per preset
+  presetKeys().forEach(key=>{
+    const p=S.presets[key];
+    const btn=document.createElement('button');
+    btn.className='pbtn';btn.textContent=p.name;
+    btn.addEventListener('click',()=>applyPreset(key));
+    loadRow.appendChild(btn);
+  });
+
+  // Manage list
+  const list=document.getElementById('preset-manage-list');
+  list.innerHTML='';
+  if(presetKeys().length===0){
+    list.innerHTML='<div class="empty">No presets yet — configure a plan and save it above.</div>';
+    return;
+  }
+  presetKeys().forEach(key=>{
+    const p=S.presets[key];
+    const row=document.createElement('div');
+    row.className='preset-row';
+    // name input
+    const ni=document.createElement('input');
+    ni.type='text';ni.className='preset-name-inp';ni.value=p.name;
+    ni.addEventListener('change',()=>renamePreset(key,ni.value));
+    // overwrite button
+    const sb=document.createElement('button');
+    sb.className='preset-save-btn';sb.textContent='Update';
+    sb.addEventListener('click',()=>saveOverPreset(key));
+    // delete button
+    const db=document.createElement('button');
+    db.className='del-btn';db.title='Delete preset';
+    db.innerHTML='<i class="ti ti-trash"></i>';
+    db.addEventListener('click',()=>{
+      if(confirm('Delete "'+p.name+'" preset?'))deletePreset(key);
+    });
+    row.appendChild(ni);row.appendChild(sb);row.appendChild(db);
+    list.appendChild(row);
+  });
 }
 
 // ── Edit view ────────────────────────────────────────────────────────────────
@@ -856,7 +922,7 @@ function showView(v){
 function renderAll(){
   renderSummary();
   renderPlan();
-  // re-render schedule if visible
+  renderPresets();
   if(document.getElementById('view-sched').classList.contains('open'))renderSchedule();
 }
 
