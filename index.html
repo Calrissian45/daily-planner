@@ -49,7 +49,11 @@
   .tab:last-child{border-right:none;}
   .tab.active{background:var(--bg-secondary);color:var(--text-primary);font-weight:500;}
   /* Preset row */
-  .preset-row{display:flex;gap:5px;margin-bottom:6px;}
+  .preset-row{display:grid;grid-template-columns:1fr 56px 32px;gap:5px;align-items:center;}
+  .preset-name-inp{font-size:calc(var(--fs) * 0.9286);padding:6px 8px;border:.5px solid var(--border-mid);border-radius:var(--radius);background:var(--bg-secondary);color:var(--text-primary);width:100%;font-family:var(--font);}
+  .preset-name-inp:focus{outline:none;border-color:var(--border-mid);}
+  .preset-save-btn{font-size:calc(var(--fs) * 0.7857);padding:6px 4px;border:.5px solid var(--border-mid);border-radius:var(--radius);background:var(--bg-secondary);color:var(--text-primary);cursor:pointer;font-family:var(--font);text-align:center;white-space:nowrap;}
+  .preset-save-btn:active{transform:scale(.97);}
   .pbtn{flex:1;padding:7px 2px;font-size:calc(var(--fs) * 0.8571);border:.5px solid var(--border-mid);border-radius:var(--radius);background:var(--bg-primary);color:var(--text-secondary);cursor:pointer;font-family:var(--font);}
   .pbtn:active{transform:scale(.97);}
   /* Save preset */
@@ -278,7 +282,7 @@
     </div>
   </div>
 
-  <div class="version">v3.4</div>
+  <div class="version">v3.5</div>
 </div>
 
 <!-- IMPORT MODAL -->
