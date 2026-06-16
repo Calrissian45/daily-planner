@@ -274,7 +274,7 @@
     </div>
   </div>
 
-  <div class="version">v4.4</div>
+  <div class="version">v4.5</div>
 </div>
 
 <!-- IMPORT MODAL -->
@@ -424,6 +424,58 @@ function timeInputToMins(s){
   return h*60+m;
 }
 
+let wheelState={h:0,m:0,ap:0}; // ap: 0=AM,1=PM (12h mode only)
+
+function buildWheelColumn(values,selectedIndex,onChange,extraClass){
+  const col=document.createElement('div');
+  col.className='wheel-col'+(extraClass?' '+extraClass:'');
+  const scroll=document.createElement('div');
+  scroll.className='wheel-scroll';
+  // top padding so first item can center
+  const padTop=document.createElement('div');padTop.className='wheel-pad';scroll.appendChild(padTop);
+  values.forEach((v,i)=>{
+    const item=document.createElement('div');
+    item.className='wheel-item';
+    item.textContent=v;
+    item.dataset.index=i;
+    scroll.appendChild(item);
+  });
+  const padBot=document.createElement('div');padBot.className='wheel-pad';scroll.appendChild(padBot);
+  col.appendChild(scroll);
+
+  // highlight band
+  const hl=document.createElement('div');hl.className='wheel-highlight';col.appendChild(hl);
+
+  const ITEM_H=40;
+  function updateSelection(){
+    const idx=Math.round(scroll.scrollTop/ITEM_H);
+    const clamped=Math.max(0,Math.min(values.length-1,idx));
+    scroll.querySelectorAll('.wheel-item').forEach((el,i)=>{
+      el.classList.toggle('sel',i===clamped);
+    });
+    onChange(clamped);
+  }
+  let scrollTimer=null;
+  scroll.addEventListener('scroll',()=>{
+    updateSelection();
+    if(scrollTimer)clearTimeout(scrollTimer);
+    scrollTimer=setTimeout(()=>{
+      // snap precisely
+      const idx=Math.round(scroll.scrollTop/ITEM_H);
+      const clamped=Math.max(0,Math.min(values.length-1,idx));
+      scroll.scrollTo({top:clamped*ITEM_H,behavior:'smooth'});
+    },80);
+  });
+
+  // initial position (no animation)
+  requestAnimationFrame(()=>{
+    scroll.scrollTop=selectedIndex*ITEM_H;
+    updateSelection();
+  });
+
+  return col;
+}
+
 function openCardEdit(key){
   activeEditKey=key;
   let overlay=document.getElementById('card-edit-overlay');
@@ -436,51 +488,96 @@ function openCardEdit(key){
   }
   const isSleep=key==='sleepHrs';
   const label={workStart:'Work starts',dinner:'Dinner',sleepHrs:'Sleep (hours)'}[key];
-  // Use native time picker for time fields; number input for sleep hours
-  const inputType=isSleep?'number':'time';
-  const currentVal=isSleep?S.sleepHrs:minsToTimeInput(S[key]);
-  const extraAttrs=isSleep?'min="4" max="12" step="0.5"':'';
+
+  if(isSleep){
+    // Number input for sleep hours (duration, not a clock time)
+    overlay.innerHTML=`
+      <div style="background:var(--bg-primary);border-radius:var(--radius);padding:20px;width:100%;max-width:320px;">
+        <div style="font-size:calc(var(--fs) * 0.8571);color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">${label}</div>
+        <input id="card-edit-inp" type="number" value="${S.sleepHrs}" min="4" max="12" step="0.5"
+          style="width:100%;padding:10px 12px;font-size:calc(var(--fs) * 1.1428);border:.5px solid var(--border-mid);border-radius:var(--radius);background:var(--bg-secondary);color:var(--text-primary);font-family:var(--font);margin-bottom:12px;">
+        <div id="card-edit-err" style="font-size:calc(var(--fs)*0.7857);color:var(--warn);min-height:14px;margin-bottom:8px;"></div>
+        <div style="display:flex;gap:8px;justify-content:flex-end;">
+          <button onclick="closeCardEdit()" style="padding:7px 16px;font-size:calc(var(--fs)*0.9286);border:.5px solid var(--border-mid);border-radius:var(--radius);background:var(--bg-secondary);color:var(--text-primary);cursor:pointer;font-family:var(--font);">Cancel</button>
+          <button onclick="saveCardEdit()" style="padding:7px 16px;font-size:calc(var(--fs)*0.9286);border:.5px solid var(--border-mid);border-radius:var(--radius);background:var(--text-primary);color:var(--bg-primary);cursor:pointer;font-family:var(--font);">Save</button>
+        </div>
+      </div>`;
+    overlay.style.display='flex';
+    setTimeout(()=>{const inp=document.getElementById('card-edit-inp');if(inp){inp.focus();inp.select();}},50);
+    return;
+  }
+
+  // Time wheel picker
+  const totalMins=S[key];
+  const h24=Math.floor(totalMins/60),mn=totalMins%60;
+
   overlay.innerHTML=`
-    <div style="background:var(--bg-primary);border-radius:var(--radius);padding:20px;width:100%;max-width:320px;">
-      <div style="font-size:calc(var(--fs) * 0.8571);color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">${label}</div>
-      <input id="card-edit-inp" type="${inputType}" value="${currentVal}" ${extraAttrs}
-        style="width:100%;padding:10px 12px;font-size:calc(var(--fs) * 1.1428);border:.5px solid var(--border-mid);border-radius:var(--radius);background:var(--bg-secondary);color:var(--text-primary);font-family:var(--font);margin-bottom:12px;color-scheme:dark;"
-      >
-      <div id="card-edit-err" style="font-size:calc(var(--fs)*0.7857);color:var(--warn);min-height:14px;margin-bottom:8px;"></div>
+    <div style="background:var(--bg-primary);border-radius:var(--radius);padding:20px;width:100%;max-width:340px;">
+      <div style="font-size:calc(var(--fs) * 0.8571);color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:10px;">${label}</div>
+      <div class="wheel-wrap" id="wheel-wrap"></div>
       <div style="display:flex;gap:8px;justify-content:flex-end;">
         <button onclick="closeCardEdit()" style="padding:7px 16px;font-size:calc(var(--fs)*0.9286);border:.5px solid var(--border-mid);border-radius:var(--radius);background:var(--bg-secondary);color:var(--text-primary);cursor:pointer;font-family:var(--font);">Cancel</button>
         <button onclick="saveCardEdit()" style="padding:7px 16px;font-size:calc(var(--fs)*0.9286);border:.5px solid var(--border-mid);border-radius:var(--radius);background:var(--text-primary);color:var(--bg-primary);cursor:pointer;font-family:var(--font);">Save</button>
       </div>
     </div>`;
   overlay.style.display='flex';
-  setTimeout(()=>{
-    const inp=document.getElementById('card-edit-inp');
-    if(inp)inp.focus();
-  },50);
+
+  const wrap=document.getElementById('wheel-wrap');
+
+  if(S.fmt===24){
+    // Hour 0-23, Minute 0-59
+    wheelState.h=h24;wheelState.m=mn;wheelState.ap=0;
+    const hours=Array.from({length:24},(_,i)=>String(i).padStart(2,'0'));
+    const mins=Array.from({length:60},(_,i)=>String(i).padStart(2,'0'));
+    wrap.appendChild(buildWheelColumn(hours,h24,idx=>{wheelState.h=idx;}));
+    const colon=document.createElement('div');colon.className='wheel-colon';colon.textContent=':';wrap.appendChild(colon);
+    wrap.appendChild(buildWheelColumn(mins,mn,idx=>{wheelState.m=idx;}));
+  } else {
+    // Hour 1-12, Minute 0-59, AM/PM
+    let h12=h24%12;if(h12===0)h12=12;
+    const ap=h24<12?0:1;
+    wheelState.h=h12;wheelState.m=mn;wheelState.ap=ap;
+    const hours=Array.from({length:12},(_,i)=>String(i+1));
+    const mins=Array.from({length:60},(_,i)=>String(i).padStart(2,'0'));
+    const ampm=['AM','PM'];
+    wrap.appendChild(buildWheelColumn(hours,h12-1,idx=>{wheelState.h=idx+1;}));
+    const colon=document.createElement('div');colon.className='wheel-colon';colon.textContent=':';wrap.appendChild(colon);
+    wrap.appendChild(buildWheelColumn(mins,mn,idx=>{wheelState.m=idx;}));
+    wrap.appendChild(buildWheelColumn(ampm,ap,idx=>{wheelState.ap=idx;},'ampm'));
+  }
 }
+
 function saveCardEdit(){
   const key=activeEditKey;
-  const inp=document.getElementById('card-edit-inp');
-  const errEl=document.getElementById('card-edit-err');
   if(key==='sleepHrs'){
+    const inp=document.getElementById('card-edit-inp');
+    const errEl=document.getElementById('card-edit-err');
     const v=parseFloat(inp.value);
     if(!v||v<4||v>12){errEl.textContent='Enter a value between 4 and 12.';return;}
     S.sleepHrs=v;save();closeCardEdit();renderAll();
-  } else {
-    const v=timeInputToMins(inp.value);
-    if(v===null){errEl.textContent='Please select a valid time.';return;}
-    S[key]=v;save();closeCardEdit();renderAll();
+    return;
   }
+  // Time from wheel
+  let mins;
+  if(S.fmt===24){
+    mins=wheelState.h*60+wheelState.m;
+  } else {
+    let h=wheelState.h%12; // 12 -> 0
+    if(wheelState.ap===1)h+=12; // PM
+    mins=h*60+wheelState.m;
+  }
+  S[key]=mins;save();closeCardEdit();renderAll();
 }
+
 function closeCardEdit(){
   const overlay=document.getElementById('card-edit-overlay');
   if(overlay)overlay.style.display='none';
   activeEditKey=null;
 }
-// allow Enter key to save
+// allow Escape to close, Enter to save (sleep input only)
 document.addEventListener('keydown',function(e){
-  if(e.key==='Enter'&&activeEditKey)saveCardEdit();
   if(e.key==='Escape'&&activeEditKey)closeCardEdit();
+  if(e.key==='Enter'&&activeEditKey==='sleepHrs')saveCardEdit();
 });
 
 // ── Render cards (chronological 8-card grid) ────────────────────────────────
